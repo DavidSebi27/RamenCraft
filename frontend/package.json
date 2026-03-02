@@ -1,5 +1,5 @@
 {
-  "name": "web_development_2_boilerplate",
+  "name": "ramencraft",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -14,7 +14,8 @@
     "build-storybook": "storybook build"
   },
   "dependencies": {
-    "vue": "^3.5.26"
+    "vue": "^3.5.26",
+    "vue-router": "^4.6.4"
   },
   "devDependencies": {
     "@chromatic-com/storybook": "^4.1.3",

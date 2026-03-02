@@ -1,1 +1,69 @@
 @import "tailwindcss";
+
+/*
+  RamenCraft Theme Configuration
+
+  Tailwind CSS v4 uses @theme blocks to define custom design tokens.
+  These become usable as Tailwind utility classes, e.g.:
+  - bg-ramen-dark, text-ramen-cream, border-ramen-red, etc.
+  - font-pixel for "Press Start 2P"
+*/
+@theme {
+  /* === Custom Colors === */
+  --color-ramen-darker: #0f0f1a;
+  --color-ramen-dark: #1a1a2e;
+  --color-ramen-brown: #4a3728;
+  --color-ramen-brown-light: #6b5344;
+  --color-ramen-red: #e74c3c;
+  --color-ramen-orange: #f39c12;
+  --color-ramen-cream: #f5e6d3;
+  --color-ramen-gold: #ffd700;
+  --color-ramen-neon: #00ff88;
+
+  /* === Custom Font Family === */
+  --font-pixel: "Press Start 2P", cursive;
+}
+
+/* === Global Base Styles === */
+
+/* Dark background for the whole app */
+body {
+  background-color: #0f0f1a;
+  color: #f5e6d3;
+  min-height: 100vh;
+}
+
+/*
+  Pixel rendering utility
+  Apply this class to any sprite/pixel art image so it scales up
+  crisp and sharp instead of blurry. Works on <img> elements.
+*/
+.pixel-render {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges; /* Firefox fallback */
+}
+
+/*
+  Pixel border effect using box-shadow
+  Creates a retro pixel-art style border around elements.
+  Use: class="pixel-border"
+*/
+.pixel-border {
+  box-shadow:
+    /* Outer border - dark outline */
+    -4px 0 0 0 #1a1a2e,
+    4px 0 0 0 #1a1a2e,
+    0 -4px 0 0 #1a1a2e,
+    0 4px 0 0 #1a1a2e;
+}
+
+/*
+  Pixel border in a lighter/highlight color for selected states
+*/
+.pixel-border-glow {
+  box-shadow:
+    -4px 0 0 0 #ffd700,
+    4px 0 0 0 #ffd700,
+    0 -4px 0 0 #ffd700,
+    0 4px 0 0 #ffd700;
+}

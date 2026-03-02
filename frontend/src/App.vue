@@ -1,7 +1,9 @@
 <script setup>
-import ArticleArchivePage from './components/pages/ArticleArchivePage/ArticleArchivePage.vue'
+// App.vue is the root component.
+// <router-view> renders whichever page component matches the current URL.
+// The router is configured in src/router/index.js
 </script>
 
 <template>
-  <ArticleArchivePage />
+  <router-view />
 </template>
