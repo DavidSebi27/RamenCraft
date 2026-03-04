@@ -8,10 +8,14 @@ import LeaderboardPage from '@/components/pages/LeaderboardPage.vue'
 import ProfilePage from '@/components/pages/ProfilePage.vue'
 import LoginPage from '@/components/pages/LoginPage.vue'
 import RegisterPage from '@/components/pages/RegisterPage.vue'
+import AdminDashboard from '@/components/pages/admin/AdminDashboard.vue'
+import AdminIngredients from '@/components/pages/admin/AdminIngredients.vue'
+import AdminPairings from '@/components/pages/admin/AdminPairings.vue'
+import AdminAchievements from '@/components/pages/admin/AdminAchievements.vue'
+import AdminUsers from '@/components/pages/admin/AdminUsers.vue'
 
 // Define all application routes
 // Each route maps a URL path to a page component
-// Admin routes will be added once admin page components are created
 const routes = [
   { path: '/', component: HomePage },
   { path: '/play', component: PlayPage },
@@ -19,6 +23,12 @@ const routes = [
   { path: '/profile', component: ProfilePage },
   { path: '/login', component: LoginPage },
   { path: '/register', component: RegisterPage },
+  // Admin routes — will be protected with auth guards in Phase 4
+  { path: '/admin', component: AdminDashboard },
+  { path: '/admin/ingredients', component: AdminIngredients },
+  { path: '/admin/pairings', component: AdminPairings },
+  { path: '/admin/achievements', component: AdminAchievements },
+  { path: '/admin/users', component: AdminUsers },
 ]
 
 // Create the router instance

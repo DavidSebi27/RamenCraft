@@ -1,14 +1,15 @@
 <script setup>
-// LeaderboardPage — Global rankings
-// Will show top players by XP and top bowls by score
+// LeaderboardPage — Global rankings with fake data
+import NavBar from '@/components/organisms/NavBar/NavBar.vue'
+import LeaderboardTable from '@/components/organisms/LeaderboardTable/LeaderboardTable.vue'
 </script>
 
 <template>
-  <div class="min-h-screen bg-ramen-darker p-4">
-    <h1 class="font-pixel text-xl text-ramen-orange mb-4">Leaderboard</h1>
-    <p class="text-ramen-cream text-sm">Rankings coming soon...</p>
-    <router-link to="/" class="text-ramen-neon text-sm mt-4 inline-block hover:underline">
-      &larr; Back to Home
-    </router-link>
+  <div class="min-h-screen bg-ramen-darker">
+    <NavBar />
+    <div class="max-w-3xl mx-auto p-4">
+      <h1 class="font-pixel text-xl text-ramen-orange mb-6">Leaderboard</h1>
+      <LeaderboardTable />
+    </div>
   </div>
 </template>
