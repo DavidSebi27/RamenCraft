@@ -34,12 +34,38 @@ use function FastRoute\simpleDispatcher;
  * All routes are prefixed with /api/ for clarity.
  */
 $dispatcher = simpleDispatcher(function (RouteCollector $r) {
-    // Category routes (public)
+    // Category routes
     $r->addRoute('GET', '/api/categories', ['App\Controllers\CategoryController', 'getAll']);
 
-    // Ingredient routes (public GET, admin CUD will be added in Phase 3)
+    // Ingredient routes (full CRUD)
     $r->addRoute('GET', '/api/ingredients', ['App\Controllers\IngredientController', 'getAll']);
     $r->addRoute('GET', '/api/ingredients/{id:\d+}', ['App\Controllers\IngredientController', 'get']);
+    $r->addRoute('POST', '/api/ingredients', ['App\Controllers\IngredientController', 'create']);
+    $r->addRoute('PUT', '/api/ingredients/{id:\d+}', ['App\Controllers\IngredientController', 'update']);
+    $r->addRoute('DELETE', '/api/ingredients/{id:\d+}', ['App\Controllers\IngredientController', 'delete']);
+
+    // Pairing routes (full CRUD)
+    $r->addRoute('GET', '/api/pairings', ['App\Controllers\PairingController', 'getAll']);
+    $r->addRoute('GET', '/api/pairings/{id:\d+}', ['App\Controllers\PairingController', 'get']);
+    $r->addRoute('POST', '/api/pairings', ['App\Controllers\PairingController', 'create']);
+    $r->addRoute('PUT', '/api/pairings/{id:\d+}', ['App\Controllers\PairingController', 'update']);
+    $r->addRoute('DELETE', '/api/pairings/{id:\d+}', ['App\Controllers\PairingController', 'delete']);
+
+    // Achievement routes (full CRUD)
+    $r->addRoute('GET', '/api/achievements', ['App\Controllers\AchievementController', 'getAll']);
+    $r->addRoute('GET', '/api/achievements/{id:\d+}', ['App\Controllers\AchievementController', 'get']);
+    $r->addRoute('POST', '/api/achievements', ['App\Controllers\AchievementController', 'create']);
+    $r->addRoute('PUT', '/api/achievements/{id:\d+}', ['App\Controllers\AchievementController', 'update']);
+    $r->addRoute('DELETE', '/api/achievements/{id:\d+}', ['App\Controllers\AchievementController', 'delete']);
+
+    // User routes (no create — that's auth/register in Phase 4)
+    $r->addRoute('GET', '/api/users', ['App\Controllers\UserController', 'getAll']);
+    $r->addRoute('GET', '/api/users/{id:\d+}', ['App\Controllers\UserController', 'get']);
+    $r->addRoute('PUT', '/api/users/{id:\d+}', ['App\Controllers\UserController', 'update']);
+    $r->addRoute('DELETE', '/api/users/{id:\d+}', ['App\Controllers\UserController', 'delete']);
+
+    // Leaderboard route
+    $r->addRoute('GET', '/api/leaderboard', ['App\Controllers\LeaderboardController', 'getTopPlayers']);
 });
 
 /**

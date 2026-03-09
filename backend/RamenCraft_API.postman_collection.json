@@ -1,0 +1,1118 @@
+{
+	"info": {
+		"_postman_id": "ramencraft-api-collection",
+		"name": "RamenCraft API",
+		"description": "Full REST API collection for the RamenCraft ramen-building game.\n\nBase URL: http://localhost:8000\n\nResources:\n- Categories (read-only)\n- Ingredients (full CRUD)\n- Pairings (full CRUD)\n- Achievements (full CRUD)\n- Users (read, update, delete)\n- Leaderboard (read-only)\n\nRun the folders in order (top to bottom) — CRUD flows use collection variables to pass created IDs between requests.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string"
+		},
+		{
+			"key": "created_ingredient_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "created_pairing_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "created_achievement_id",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Categories",
+			"item": [
+				{
+					"name": "Get All Categories",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response is a non-empty array', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json).to.be.an('array').that.is.not.empty;",
+									"});",
+									"",
+									"pm.test('Each category has required fields', function () {",
+									"    const json = pm.response.json();",
+									"    json.forEach(function (cat) {",
+									"        pm.expect(cat).to.have.property('id');",
+									"        pm.expect(cat).to.have.property('name');",
+									"        pm.expect(cat).to.have.property('displayName');",
+									"        pm.expect(cat).to.have.property('sortOrder');",
+									"    });",
+									"});",
+									"",
+									"pm.test('There are exactly 5 categories', function () {",
+									"    pm.expect(pm.response.json().length).to.eql(5);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/categories",
+							"host": ["{{base_url}}"],
+							"path": ["api", "categories"]
+						},
+						"description": "Returns all ingredient categories sorted by display order."
+					}
+				}
+			]
+		},
+		{
+			"name": "Ingredients",
+			"item": [
+				{
+					"name": "Get All Ingredients",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has pagination structure', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json).to.have.property('data');",
+									"    pm.expect(json).to.have.property('page');",
+									"    pm.expect(json).to.have.property('limit');",
+									"    pm.expect(json).to.have.property('total');",
+									"});",
+									"",
+									"pm.test('Data is an array', function () {",
+									"    pm.expect(pm.response.json().data).to.be.an('array');",
+									"});",
+									"",
+									"pm.test('Each ingredient has required fields', function () {",
+									"    const data = pm.response.json().data;",
+									"    if (data.length > 0) {",
+									"        data.forEach(function (ing) {",
+									"            pm.expect(ing).to.have.property('id');",
+									"            pm.expect(ing).to.have.property('name');",
+									"            pm.expect(ing).to.have.property('categoryId');",
+									"            pm.expect(ing).to.have.property('categoryName');",
+									"            pm.expect(ing).to.have.property('isAvailable');",
+									"        });",
+									"    }",
+									"});",
+									"",
+									"pm.test('Pagination values are correct', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.page).to.eql(1);",
+									"    pm.expect(json.limit).to.eql(10);",
+									"    pm.expect(json.total).to.be.a('number');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/ingredients?page=1&limit=10",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ingredients"],
+							"query": [
+								{ "key": "page", "value": "1", "description": "Page number (default: 1)" },
+								{ "key": "limit", "value": "10", "description": "Items per page (default: 10, max: 50)" },
+								{ "key": "category", "value": "broth", "description": "Filter by category name", "disabled": true }
+							]
+						},
+						"description": "Returns a paginated list of ingredients. Supports filtering by category name."
+					}
+				},
+				{
+					"name": "Get All Ingredients (filtered by category)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('All returned ingredients belong to broth category', function () {",
+									"    const data = pm.response.json().data;",
+									"    data.forEach(function (ing) {",
+									"        pm.expect(ing.categoryName).to.eql('broth');",
+									"    });",
+									"});",
+									"",
+									"pm.test('There are 8 broth ingredients', function () {",
+									"    pm.expect(pm.response.json().total).to.eql(8);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/ingredients?category=broth",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ingredients"],
+							"query": [
+								{ "key": "category", "value": "broth", "description": "Filter by category name" }
+							]
+						},
+						"description": "Returns ingredients filtered by category name (e.g., broth, noodles, oil, protein, topping)."
+					}
+				},
+				{
+					"name": "Get Ingredient by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Returns the correct ingredient', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.id).to.eql(1);",
+									"    pm.expect(json.name).to.be.a('string');",
+									"});",
+									"",
+									"pm.test('Ingredient has all expected fields', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json).to.have.property('id');",
+									"    pm.expect(json).to.have.property('name');",
+									"    pm.expect(json).to.have.property('categoryId');",
+									"    pm.expect(json).to.have.property('categoryName');",
+									"    pm.expect(json).to.have.property('nameJp');",
+									"    pm.expect(json).to.have.property('description');",
+									"    pm.expect(json).to.have.property('spriteIcon');",
+									"    pm.expect(json).to.have.property('caloriesPerServing');",
+									"    pm.expect(json).to.have.property('isAvailable');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/ingredients/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ingredients", "1"]
+						},
+						"description": "Returns a single ingredient by its ID."
+					}
+				},
+				{
+					"name": "Get Ingredient — Not Found",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 404', function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test('Returns error message', function () {",
+									"    pm.expect(pm.response.json()).to.have.property('error');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/ingredients/99999",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ingredients", "99999"]
+						},
+						"description": "Tests 404 response for a non-existent ingredient."
+					}
+				},
+				{
+					"name": "Create Ingredient",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 201', function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test('Returns the created ingredient', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.name).to.eql('Wakame');",
+									"    pm.expect(json.categoryId).to.eql(5);",
+									"    pm.expect(json.categoryName).to.eql('topping');",
+									"    pm.expect(json.id).to.be.a('number');",
+									"});",
+									"",
+									"// Save the ID for update and delete tests",
+									"pm.collectionVariables.set('created_ingredient_id', pm.response.json().id);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Wakame\",\n    \"categoryId\": 5,\n    \"nameJp\": \"わかめ\",\n    \"description\": \"Seaweed, rehydrated\",\n    \"caloriesPerServing\": 10,\n    \"proteinG\": 1,\n    \"fatG\": 0,\n    \"carbsG\": 2,\n    \"isAvailable\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/ingredients",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ingredients"]
+						},
+						"description": "Creates a new ingredient. Required fields: name, categoryId."
+					}
+				},
+				{
+					"name": "Create Ingredient — Validation Error",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 400', function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test('Returns error message', function () {",
+									"    pm.expect(pm.response.json()).to.have.property('error');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"description\": \"Missing name and categoryId\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/ingredients",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ingredients"]
+						},
+						"description": "Tests validation — name and categoryId are required."
+					}
+				},
+				{
+					"name": "Update Ingredient",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Name was updated', function () {",
+									"    pm.expect(pm.response.json().name).to.eql('Wakame Seaweed');",
+									"});",
+									"",
+									"pm.test('Description was updated', function () {",
+									"    pm.expect(pm.response.json().description).to.eql('Rehydrated wakame seaweed');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Wakame Seaweed\",\n    \"description\": \"Rehydrated wakame seaweed\",\n    \"caloriesPerServing\": 12\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/ingredients/{{created_ingredient_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ingredients", "{{created_ingredient_id}}"]
+						},
+						"description": "Updates the ingredient created in the previous step."
+					}
+				},
+				{
+					"name": "Delete Ingredient",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Returns success message', function () {",
+									"    pm.expect(pm.response.json().message).to.eql('Ingredient deleted');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/ingredients/{{created_ingredient_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ingredients", "{{created_ingredient_id}}"]
+						},
+						"description": "Deletes the ingredient created earlier. Cleans up test data."
+					}
+				},
+				{
+					"name": "Delete Ingredient — Not Found",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 404', function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test('Returns error message', function () {",
+									"    pm.expect(pm.response.json()).to.have.property('error');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/ingredients/99999",
+							"host": ["{{base_url}}"],
+							"path": ["api", "ingredients", "99999"]
+						},
+						"description": "Tests 404 when deleting a non-existent ingredient."
+					}
+				}
+			]
+		},
+		{
+			"name": "Pairings",
+			"item": [
+				{
+					"name": "Get All Pairings",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has pagination structure', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json).to.have.property('data');",
+									"    pm.expect(json).to.have.property('page');",
+									"    pm.expect(json).to.have.property('limit');",
+									"    pm.expect(json).to.have.property('total');",
+									"});",
+									"",
+									"pm.test('Each pairing has ingredient names', function () {",
+									"    const data = pm.response.json().data;",
+									"    if (data.length > 0) {",
+									"        data.forEach(function (p) {",
+									"            pm.expect(p).to.have.property('ingredient1Name');",
+									"            pm.expect(p).to.have.property('ingredient2Name');",
+									"            pm.expect(p).to.have.property('scoreModifier');",
+									"        });",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/pairings?page=1&limit=20",
+							"host": ["{{base_url}}"],
+							"path": ["api", "pairings"],
+							"query": [
+								{ "key": "page", "value": "1", "description": "Page number (default: 1)" },
+								{ "key": "limit", "value": "20", "description": "Items per page (default: 20, max: 50)" }
+							]
+						},
+						"description": "Returns a paginated list of ingredient pairings with ingredient names."
+					}
+				},
+				{
+					"name": "Get Pairing by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Returns correct pairing', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.id).to.eql(1);",
+									"    pm.expect(json).to.have.property('comboName');",
+									"    pm.expect(json).to.have.property('scoreModifier');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/pairings/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "pairings", "1"]
+						},
+						"description": "Returns a single pairing by ID."
+					}
+				},
+				{
+					"name": "Create Pairing",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 201', function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test('Returns created pairing with ingredient names', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.scoreModifier).to.eql(3);",
+									"    pm.expect(json.comboName).to.eql('Noodle Corn');",
+									"    pm.expect(json.ingredient1Name).to.be.a('string');",
+									"    pm.expect(json.ingredient2Name).to.be.a('string');",
+									"});",
+									"",
+									"pm.collectionVariables.set('created_pairing_id', pm.response.json().id);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"ingredient1Id\": 9,\n    \"ingredient2Id\": 23,\n    \"scoreModifier\": 3,\n    \"comboName\": \"Noodle Corn\",\n    \"description\": \"Thin noodles with sweet corn\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/pairings",
+							"host": ["{{base_url}}"],
+							"path": ["api", "pairings"]
+						},
+						"description": "Creates a new ingredient pairing. Required: ingredient1Id, ingredient2Id, scoreModifier."
+					}
+				},
+				{
+					"name": "Update Pairing",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Score modifier was updated', function () {",
+									"    pm.expect(pm.response.json().scoreModifier).to.eql(8);",
+									"});",
+									"",
+									"pm.test('Description was updated', function () {",
+									"    pm.expect(pm.response.json().description).to.eql('Updated combo description');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"scoreModifier\": 8,\n    \"description\": \"Updated combo description\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/pairings/{{created_pairing_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "pairings", "{{created_pairing_id}}"]
+						},
+						"description": "Updates the pairing created in the previous step."
+					}
+				},
+				{
+					"name": "Delete Pairing",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Returns success message', function () {",
+									"    pm.expect(pm.response.json().message).to.eql('Pairing deleted');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/pairings/{{created_pairing_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "pairings", "{{created_pairing_id}}"]
+						},
+						"description": "Deletes the pairing created earlier."
+					}
+				}
+			]
+		},
+		{
+			"name": "Achievements",
+			"item": [
+				{
+					"name": "Get All Achievements",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has pagination structure', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json).to.have.property('data');",
+									"    pm.expect(json).to.have.property('page');",
+									"    pm.expect(json).to.have.property('limit');",
+									"    pm.expect(json).to.have.property('total');",
+									"});",
+									"",
+									"pm.test('Achievements have required fields', function () {",
+									"    const data = pm.response.json().data;",
+									"    if (data.length > 0) {",
+									"        data.forEach(function (a) {",
+									"            pm.expect(a).to.have.property('id');",
+									"            pm.expect(a).to.have.property('name');",
+									"            pm.expect(a).to.have.property('description');",
+									"            pm.expect(a).to.have.property('requirementType');",
+									"        });",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/achievements?page=1&limit=20",
+							"host": ["{{base_url}}"],
+							"path": ["api", "achievements"],
+							"query": [
+								{ "key": "page", "value": "1", "description": "Page number (default: 1)" },
+								{ "key": "limit", "value": "20", "description": "Items per page (default: 20, max: 50)" }
+							]
+						},
+						"description": "Returns a paginated list of achievements."
+					}
+				},
+				{
+					"name": "Get Achievement by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Returns correct achievement', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.id).to.eql(1);",
+									"    pm.expect(json.name).to.eql('First Serve');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/achievements/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "achievements", "1"]
+						},
+						"description": "Returns a single achievement by ID."
+					}
+				},
+				{
+					"name": "Create Achievement",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 201', function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test('Returns created achievement', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.name).to.eql('Speed Runner');",
+									"    pm.expect(json.requirementType).to.eql('speed');",
+									"    pm.expect(json.requirementValue).to.eql(10);",
+									"});",
+									"",
+									"pm.collectionVariables.set('created_achievement_id', pm.response.json().id);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Speed Runner\",\n    \"description\": \"Served 10 bowls in under 5 minutes\",\n    \"requirementType\": \"speed\",\n    \"requirementValue\": 10\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/achievements",
+							"host": ["{{base_url}}"],
+							"path": ["api", "achievements"]
+						},
+						"description": "Creates a new achievement. Required: name."
+					}
+				},
+				{
+					"name": "Update Achievement",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Name was updated', function () {",
+									"    pm.expect(pm.response.json().name).to.eql('Speed Demon');",
+									"});",
+									"",
+									"pm.test('Requirement value was updated', function () {",
+									"    pm.expect(pm.response.json().requirementValue).to.eql(15);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Speed Demon\",\n    \"description\": \"Updated description\",\n    \"requirementValue\": 15\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/achievements/{{created_achievement_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "achievements", "{{created_achievement_id}}"]
+						},
+						"description": "Updates the achievement created in the previous step."
+					}
+				},
+				{
+					"name": "Delete Achievement",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Returns success message', function () {",
+									"    pm.expect(pm.response.json().message).to.eql('Achievement deleted');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/achievements/{{created_achievement_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "achievements", "{{created_achievement_id}}"]
+						},
+						"description": "Deletes the achievement created earlier."
+					}
+				}
+			]
+		},
+		{
+			"name": "Users",
+			"item": [
+				{
+					"name": "Get All Users",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has pagination structure', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json).to.have.property('data');",
+									"    pm.expect(json).to.have.property('page');",
+									"    pm.expect(json).to.have.property('total');",
+									"});",
+									"",
+									"pm.test('Password hash is never exposed', function () {",
+									"    const data = pm.response.json().data;",
+									"    data.forEach(function (user) {",
+									"        pm.expect(user).to.not.have.property('password_hash');",
+									"        pm.expect(user).to.not.have.property('passwordHash');",
+									"    });",
+									"});",
+									"",
+									"pm.test('Users have expected fields', function () {",
+									"    const data = pm.response.json().data;",
+									"    if (data.length > 0) {",
+									"        data.forEach(function (user) {",
+									"            pm.expect(user).to.have.property('id');",
+									"            pm.expect(user).to.have.property('username');",
+									"            pm.expect(user).to.have.property('email');",
+									"            pm.expect(user).to.have.property('role');",
+									"            pm.expect(user).to.have.property('totalXp');",
+									"            pm.expect(user).to.have.property('currentRank');",
+									"        });",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/users?page=1&limit=10",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users"],
+							"query": [
+								{ "key": "page", "value": "1", "description": "Page number (default: 1)" },
+								{ "key": "limit", "value": "10", "description": "Items per page (default: 10, max: 50)" }
+							]
+						},
+						"description": "Returns a paginated list of users. Password hashes are never exposed."
+					}
+				},
+				{
+					"name": "Get User by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Returns the correct user', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json.id).to.eql(1);",
+									"    pm.expect(json.username).to.eql('admin');",
+									"    pm.expect(json.role).to.eql('admin');",
+									"});",
+									"",
+									"pm.test('Password hash is not exposed', function () {",
+									"    const json = pm.response.json();",
+									"    pm.expect(json).to.not.have.property('password_hash');",
+									"    pm.expect(json).to.not.have.property('passwordHash');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/users/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "1"]
+						},
+						"description": "Returns a single user by ID (no password hash)."
+					}
+				},
+				{
+					"name": "Update User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('XP was updated', function () {",
+									"    pm.expect(pm.response.json().totalXp).to.eql(1500);",
+									"});",
+									"",
+									"pm.test('Rank was updated', function () {",
+									"    pm.expect(pm.response.json().currentRank).to.eql('tsuu');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"totalXp\": 1500,\n    \"currentRank\": \"tsuu\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/users/2",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "2"]
+						},
+						"description": "Updates user fields. Using player account (id=2) to avoid modifying admin."
+					}
+				},
+				{
+					"name": "Revert User Update",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('XP reverted to original', function () {",
+									"    pm.expect(pm.response.json().totalXp).to.eql(820);",
+									"});",
+									"",
+									"pm.test('Rank reverted to original', function () {",
+									"    pm.expect(pm.response.json().currentRank).to.eql('jouren');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"totalXp\": 820,\n    \"currentRank\": \"jouren\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/users/2",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "2"]
+						},
+						"description": "Reverts the user update so tests are repeatable without side effects."
+					}
+				},
+				{
+					"name": "Get User — Not Found",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 404', function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test('Returns error message', function () {",
+									"    pm.expect(pm.response.json()).to.have.property('error');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/users/99999",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "99999"]
+						},
+						"description": "Tests 404 for a non-existent user."
+					}
+				}
+			]
+		},
+		{
+			"name": "Leaderboard",
+			"item": [
+				{
+					"name": "Get Top Players",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response is an array', function () {",
+									"    pm.expect(pm.response.json()).to.be.an('array');",
+									"});",
+									"",
+									"pm.test('Players have rank, username, and XP', function () {",
+									"    const json = pm.response.json();",
+									"    if (json.length > 0) {",
+									"        json.forEach(function (player) {",
+									"            pm.expect(player).to.have.property('rank');",
+									"            pm.expect(player).to.have.property('username');",
+									"            pm.expect(player).to.have.property('totalXp');",
+									"            pm.expect(player).to.have.property('currentRank');",
+									"        });",
+									"    }",
+									"});",
+									"",
+									"pm.test('Players are sorted by XP descending', function () {",
+									"    const json = pm.response.json();",
+									"    for (let i = 1; i < json.length; i++) {",
+									"        pm.expect(json[i-1].totalXp).to.be.at.least(json[i].totalXp);",
+									"    }",
+									"});",
+									"",
+									"pm.test('Only players are returned (no admins)', function () {",
+									"    const json = pm.response.json();",
+									"    json.forEach(function (player) {",
+									"        pm.expect(player.username).to.not.eql('admin');",
+									"    });",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/leaderboard?limit=10",
+							"host": ["{{base_url}}"],
+							"path": ["api", "leaderboard"],
+							"query": [
+								{ "key": "limit", "value": "10", "description": "Number of top players to return (default: 10, max: 50)" }
+							]
+						},
+						"description": "Returns top players ranked by total XP. Only includes players (not admins)."
+					}
+				}
+			]
+		}
+	]
+}

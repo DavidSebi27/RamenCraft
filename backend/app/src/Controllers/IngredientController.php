@@ -129,6 +129,167 @@ class IngredientController extends Controller
     }
 
     /**
+     * POST /api/ingredients
+     *
+     * Creates a new ingredient. Requires: name, categoryId.
+     */
+    public function create(): void
+    {
+        try {
+            $input = json_decode(file_get_contents('php://input'), true);
+
+            if (!$input || empty($input['name']) || empty($input['categoryId'])) {
+                $this->sendErrorResponse('Fields "name" and "categoryId" are required', 400);
+                return;
+            }
+
+            $db = Database::getConnection();
+
+            $sql = "INSERT INTO ingredients (category_id, name, name_jp, description, sprite_icon, sprite_bowl,
+                        calories_per_serving, protein_g, fat_g, carbs_g, is_available)
+                    VALUES (:category_id, :name, :name_jp, :description, :sprite_icon, :sprite_bowl,
+                        :calories_per_serving, :protein_g, :fat_g, :carbs_g, :is_available)";
+
+            $stmt = $db->prepare($sql);
+            $stmt->execute([
+                ':category_id' => (int) $input['categoryId'],
+                ':name' => $input['name'],
+                ':name_jp' => $input['nameJp'] ?? null,
+                ':description' => $input['description'] ?? null,
+                ':sprite_icon' => $input['spriteIcon'] ?? null,
+                ':sprite_bowl' => $input['spriteBowl'] ?? null,
+                ':calories_per_serving' => $input['caloriesPerServing'] ?? null,
+                ':protein_g' => $input['proteinG'] ?? null,
+                ':fat_g' => $input['fatG'] ?? null,
+                ':carbs_g' => $input['carbsG'] ?? null,
+                ':is_available' => isset($input['isAvailable']) ? (int) $input['isAvailable'] : 1,
+            ]);
+
+            $newId = (int) $db->lastInsertId();
+
+            // Fetch the newly created ingredient with category name
+            $fetchSql = "SELECT i.*, c.name AS category_name
+                         FROM ingredients i
+                         JOIN categories c ON i.category_id = c.id
+                         WHERE i.id = :id";
+            $fetchStmt = $db->prepare($fetchSql);
+            $fetchStmt->bindValue(':id', $newId, \PDO::PARAM_INT);
+            $fetchStmt->execute();
+
+            $this->sendSuccessResponse($this->formatIngredient($fetchStmt->fetch()), 201);
+        } catch (\Exception $e) {
+            $this->sendErrorResponse('Failed to create ingredient: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * PUT /api/ingredients/{id}
+     *
+     * Updates an existing ingredient.
+     */
+    public function update(array $vars = []): void
+    {
+        try {
+            $id = (int) ($vars['id'] ?? 0);
+            if ($id <= 0) {
+                $this->sendErrorResponse('Invalid ingredient ID', 400);
+                return;
+            }
+
+            $db = Database::getConnection();
+
+            // Check ingredient exists
+            $check = $db->prepare("SELECT id FROM ingredients WHERE id = :id");
+            $check->bindValue(':id', $id, \PDO::PARAM_INT);
+            $check->execute();
+            if (!$check->fetch()) {
+                $this->sendErrorResponse('Ingredient not found', 404);
+                return;
+            }
+
+            $input = json_decode(file_get_contents('php://input'), true);
+            if (!$input) {
+                $this->sendErrorResponse('Request body is required', 400);
+                return;
+            }
+
+            $sql = "UPDATE ingredients SET
+                        category_id = COALESCE(:category_id, category_id),
+                        name = COALESCE(:name, name),
+                        name_jp = COALESCE(:name_jp, name_jp),
+                        description = COALESCE(:description, description),
+                        sprite_icon = COALESCE(:sprite_icon, sprite_icon),
+                        sprite_bowl = COALESCE(:sprite_bowl, sprite_bowl),
+                        calories_per_serving = COALESCE(:calories_per_serving, calories_per_serving),
+                        protein_g = COALESCE(:protein_g, protein_g),
+                        fat_g = COALESCE(:fat_g, fat_g),
+                        carbs_g = COALESCE(:carbs_g, carbs_g),
+                        is_available = COALESCE(:is_available, is_available)
+                    WHERE id = :id";
+
+            $stmt = $db->prepare($sql);
+            $stmt->execute([
+                ':category_id' => $input['categoryId'] ?? null,
+                ':name' => $input['name'] ?? null,
+                ':name_jp' => $input['nameJp'] ?? null,
+                ':description' => $input['description'] ?? null,
+                ':sprite_icon' => $input['spriteIcon'] ?? null,
+                ':sprite_bowl' => $input['spriteBowl'] ?? null,
+                ':calories_per_serving' => $input['caloriesPerServing'] ?? null,
+                ':protein_g' => $input['proteinG'] ?? null,
+                ':fat_g' => $input['fatG'] ?? null,
+                ':carbs_g' => $input['carbsG'] ?? null,
+                ':is_available' => isset($input['isAvailable']) ? (int) $input['isAvailable'] : null,
+                ':id' => $id,
+            ]);
+
+            // Return the updated ingredient
+            $fetchSql = "SELECT i.*, c.name AS category_name
+                         FROM ingredients i
+                         JOIN categories c ON i.category_id = c.id
+                         WHERE i.id = :id";
+            $fetchStmt = $db->prepare($fetchSql);
+            $fetchStmt->bindValue(':id', $id, \PDO::PARAM_INT);
+            $fetchStmt->execute();
+
+            $this->sendSuccessResponse($this->formatIngredient($fetchStmt->fetch()));
+        } catch (\Exception $e) {
+            $this->sendErrorResponse('Failed to update ingredient: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * DELETE /api/ingredients/{id}
+     *
+     * Deletes an ingredient by ID.
+     */
+    public function delete(array $vars = []): void
+    {
+        try {
+            $id = (int) ($vars['id'] ?? 0);
+            if ($id <= 0) {
+                $this->sendErrorResponse('Invalid ingredient ID', 400);
+                return;
+            }
+
+            $db = Database::getConnection();
+
+            $stmt = $db->prepare("DELETE FROM ingredients WHERE id = :id");
+            $stmt->bindValue(':id', $id, \PDO::PARAM_INT);
+            $stmt->execute();
+
+            if ($stmt->rowCount() === 0) {
+                $this->sendErrorResponse('Ingredient not found', 404);
+                return;
+            }
+
+            $this->sendSuccessResponse(['message' => 'Ingredient deleted']);
+        } catch (\Exception $e) {
+            $this->sendErrorResponse('Failed to delete ingredient: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
      * Convert a database row (snake_case) to a frontend-friendly format (camelCase)
      */
     private function formatIngredient(array $row): array
