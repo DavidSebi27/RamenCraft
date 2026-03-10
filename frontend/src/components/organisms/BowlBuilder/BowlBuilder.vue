@@ -1,6 +1,5 @@
 <script setup>
 import { computed } from 'vue'
-import { getIngredientById } from '@/data/ingredients.js'
 
 /**
  * BowlBuilder — 3/4 perspective bowl visualization
@@ -16,10 +15,12 @@ import { getIngredientById } from '@/data/ingredients.js'
  *   z-36: Negi (always center, on top of menma)
  *   z-40: Oil drizzle
  *   z-50: Proteins (along the back/sides)
+ *   z-55: Nori (sheet against back wall)
  *   z-60: Other toppings (scattered)
  *
  * Props:
  * - selections: { broth: [id], noodles: [id], oil: [ids], protein: [ids], topping: [ids] }
+ * - ingredientMap: Object mapping ingredient ID → full ingredient object (with color)
  */
 const props = defineProps({
   selections: {
@@ -32,49 +33,58 @@ const props = defineProps({
       topping: [],
     }),
   },
+  ingredientMap: {
+    type: Object,
+    default: () => ({}),
+  },
 })
 
+// Helper to look up an ingredient by ID from the map
+function getIng(id) {
+  return props.ingredientMap[id] || null
+}
+
 const selectedBroth = computed(() =>
-  props.selections.broth[0] ? getIngredientById(props.selections.broth[0]) : null
+  props.selections.broth[0] ? getIng(props.selections.broth[0]) : null
 )
 const selectedNoodles = computed(() =>
-  props.selections.noodles[0] ? getIngredientById(props.selections.noodles[0]) : null
+  props.selections.noodles[0] ? getIng(props.selections.noodles[0]) : null
 )
 const selectedOils = computed(() =>
-  props.selections.oil.map(id => getIngredientById(id)).filter(Boolean)
+  props.selections.oil.map(id => getIng(id)).filter(Boolean)
 )
 const selectedProteins = computed(() =>
-  props.selections.protein.map(id => getIngredientById(id)).filter(Boolean)
+  props.selections.protein.map(id => getIng(id)).filter(Boolean)
 )
 
-// Menma and negi get fixed center positions; other toppings scatter
+// Menma, negi, nori get fixed positions; other toppings scatter
 const selectedMenma = computed(() => {
   const id = props.selections.topping.find(id => {
-    const ing = getIngredientById(id)
+    const ing = getIng(id)
     return ing && ing.name === 'Menma'
   })
-  return id ? getIngredientById(id) : null
+  return id ? getIng(id) : null
 })
 
 const selectedNegi = computed(() => {
   const id = props.selections.topping.find(id => {
-    const ing = getIngredientById(id)
+    const ing = getIng(id)
     return ing && ing.name === 'Negi'
   })
-  return id ? getIngredientById(id) : null
+  return id ? getIng(id) : null
 })
 
 const selectedNori = computed(() => {
   const id = props.selections.topping.find(id => {
-    const ing = getIngredientById(id)
+    const ing = getIng(id)
     return ing && ing.name === 'Nori'
   })
-  return id ? getIngredientById(id) : null
+  return id ? getIng(id) : null
 })
 
 const otherToppings = computed(() =>
   props.selections.topping
-    .map(id => getIngredientById(id))
+    .map(id => getIng(id))
     .filter(t => t && t.name !== 'Menma' && t.name !== 'Negi' && t.name !== 'Nori')
 )
 
