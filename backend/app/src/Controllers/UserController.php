@@ -98,10 +98,18 @@ class UserController extends Controller
      */
     public function update(array $vars = []): void
     {
+        $payload = $this->authenticate();
+
         try {
             $id = (int) ($vars['id'] ?? 0);
             if ($id <= 0) {
                 $this->sendErrorResponse('Invalid user ID', 400);
+                return;
+            }
+
+            // Users can only update themselves, admins can update anyone
+            if ($payload->role !== 'admin' && $payload->sub !== $id) {
+                $this->sendErrorResponse('Forbidden — you can only update your own profile', 403);
                 return;
             }
 
@@ -158,6 +166,8 @@ class UserController extends Controller
      */
     public function delete(array $vars = []): void
     {
+        $this->requireAdmin();
+
         try {
             $id = (int) ($vars['id'] ?? 0);
             if ($id <= 0) {

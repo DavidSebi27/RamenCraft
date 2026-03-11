@@ -34,6 +34,11 @@ use function FastRoute\simpleDispatcher;
  * All routes are prefixed with /api/ for clarity.
  */
 $dispatcher = simpleDispatcher(function (RouteCollector $r) {
+    // Auth routes
+    $r->addRoute('POST', '/api/auth/register', ['App\Controllers\AuthController', 'register']);
+    $r->addRoute('POST', '/api/auth/login', ['App\Controllers\AuthController', 'login']);
+    $r->addRoute('GET', '/api/auth/me', ['App\Controllers\AuthController', 'me']);
+
     // Category routes
     $r->addRoute('GET', '/api/categories', ['App\Controllers\CategoryController', 'getAll']);
 

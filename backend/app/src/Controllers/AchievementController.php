@@ -90,6 +90,8 @@ class AchievementController extends Controller
      */
     public function create(): void
     {
+        $this->authenticate();
+
         try {
             $input = json_decode(file_get_contents('php://input'), true);
 
@@ -129,6 +131,8 @@ class AchievementController extends Controller
      */
     public function update(array $vars = []): void
     {
+        $this->authenticate();
+
         try {
             $id = (int) ($vars['id'] ?? 0);
             if ($id <= 0) {
@@ -185,6 +189,8 @@ class AchievementController extends Controller
      */
     public function delete(array $vars = []): void
     {
+        $this->requireAdmin();
+
         try {
             $id = (int) ($vars['id'] ?? 0);
             if ($id <= 0) {

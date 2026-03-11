@@ -2,10 +2,54 @@
 
 namespace App\Framework;
 
+use App\Config\JWT;
+
 class Controller
 {
     public function __construct()
     {
+    }
+
+    /**
+     * Require a valid JWT token. Returns the decoded payload or sends 401 and exits.
+     *
+     * @return object The decoded JWT payload (with ->sub, ->role, etc.)
+     */
+    protected function authenticate(): object
+    {
+        $header = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+
+        if (!preg_match('/^Bearer\s+(.+)$/i', $header, $matches)) {
+            $this->sendErrorResponse('Unauthorized — no token provided', 401);
+            exit;
+        }
+
+        $payload = JWT::validate($matches[1]);
+
+        if (!$payload) {
+            $this->sendErrorResponse('Unauthorized — invalid or expired token', 401);
+            exit;
+        }
+
+        return $payload;
+    }
+
+    /**
+     * Require the authenticated user to have the 'admin' role.
+     * Calls authenticate() first, then checks the role.
+     *
+     * @return object The decoded JWT payload
+     */
+    protected function requireAdmin(): object
+    {
+        $payload = $this->authenticate();
+
+        if ($payload->role !== 'admin') {
+            $this->sendErrorResponse('Forbidden — admin access required', 403);
+            exit;
+        }
+
+        return $payload;
     }
 
     protected function sendSuccessResponse($data = [], $code = 200)
