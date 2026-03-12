@@ -90,6 +90,21 @@ export async function fetchIngredientById(id) {
   return data
 }
 
+export async function createIngredient(body) {
+  const { data } = await api.post('/ingredients', body)
+  return data
+}
+
+export async function updateIngredient(id, body) {
+  const { data } = await api.put(`/ingredients/${id}`, body)
+  return data
+}
+
+export async function deleteIngredient(id) {
+  const { data } = await api.delete(`/ingredients/${id}`)
+  return data
+}
+
 // ============================================================
 // Pairings
 // ============================================================
@@ -99,12 +114,42 @@ export async function fetchPairings(params = {}) {
   return data
 }
 
+export async function createPairing(body) {
+  const { data } = await api.post('/pairings', body)
+  return data
+}
+
+export async function updatePairing(id, body) {
+  const { data } = await api.put(`/pairings/${id}`, body)
+  return data
+}
+
+export async function deletePairing(id) {
+  const { data } = await api.delete(`/pairings/${id}`)
+  return data
+}
+
 // ============================================================
 // Achievements
 // ============================================================
 
 export async function fetchAchievements(params = {}) {
   const { data } = await api.get('/achievements', { params })
+  return data
+}
+
+export async function createAchievement(body) {
+  const { data } = await api.post('/achievements', body)
+  return data
+}
+
+export async function updateAchievement(id, body) {
+  const { data } = await api.put(`/achievements/${id}`, body)
+  return data
+}
+
+export async function deleteAchievement(id) {
+  const { data } = await api.delete(`/achievements/${id}`)
   return data
 }
 
@@ -119,6 +164,16 @@ export async function fetchUsers(params = {}) {
 
 export async function fetchUserById(id) {
   const { data } = await api.get(`/users/${id}`)
+  return data
+}
+
+export async function updateUser(id, body) {
+  const { data } = await api.put(`/users/${id}`, body)
+  return data
+}
+
+export async function deleteUser(id) {
+  const { data } = await api.delete(`/users/${id}`)
   return data
 }
 
