@@ -1,45 +1,44 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { register } from '@/services/api'
+import { useAuthStore } from '@/stores/auth'
 import NavBar from '@/components/organisms/NavBar/NavBar.vue'
 
 const router = useRouter()
+const auth = useAuthStore()
 
 const username = ref('')
 const email = ref('')
 const password = ref('')
 const confirmPassword = ref('')
-const error = ref('')
-const loading = ref(false)
+const localError = ref('')
 
-async function handleRegister() {
-  error.value = ''
+function handleRegister() {
+  localError.value = ''
+  auth.error = null
 
   if (!username.value || !email.value || !password.value) {
-    error.value = 'All fields are required'
+    localError.value = 'All fields are required'
     return
   }
 
   if (password.value !== confirmPassword.value) {
-    error.value = 'Passwords do not match'
+    localError.value = 'Passwords do not match'
     return
   }
 
   if (password.value.length < 6) {
-    error.value = 'Password must be at least 6 characters'
+    localError.value = 'Password must be at least 6 characters'
     return
   }
 
-  loading.value = true
-  try {
-    await register(username.value, email.value, password.value)
-    router.push('/play')
-  } catch (err) {
-    error.value = err.response?.data?.error || 'Registration failed'
-  } finally {
-    loading.value = false
-  }
+  auth.register(username.value, email.value, password.value)
+    .then(() => {
+      router.push('/play')
+    })
+    .catch(() => {
+      // Error is already set in the store
+    })
 }
 </script>
 
@@ -50,8 +49,8 @@ async function handleRegister() {
       <div class="w-full max-w-sm">
         <h1 class="font-pixel text-xl text-ramen-orange mb-6 text-center">Register</h1>
 
-        <div v-if="error" class="bg-ramen-red/20 border border-ramen-red text-ramen-cream text-sm px-3 py-2 mb-4">
-          {{ error }}
+        <div v-if="localError || auth.error" class="bg-ramen-red/20 border border-ramen-red text-ramen-cream text-sm px-3 py-2 mb-4">
+          {{ localError || auth.error }}
         </div>
 
         <form @submit.prevent="handleRegister" class="space-y-4">
@@ -97,10 +96,10 @@ async function handleRegister() {
 
           <button
             type="submit"
-            :disabled="loading"
+            :disabled="auth.loading"
             class="w-full font-pixel text-xs bg-ramen-red text-ramen-cream px-4 py-3 hover:bg-ramen-orange transition-colors disabled:opacity-50"
           >
-            {{ loading ? 'CREATING...' : 'CREATE ACCOUNT' }}
+            {{ auth.loading ? 'CREATING...' : 'CREATE ACCOUNT' }}
           </button>
         </form>
 

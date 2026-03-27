@@ -16,7 +16,7 @@ const ranks = [
   { name: 'Jouren', kanji: '常連', english: 'Regular', color: '#60A5FA', xp: '500' },
   { name: 'Tsuu', kanji: '通', english: 'Connoisseur', color: '#A78BFA', xp: '2,000' },
   { name: 'Shokunin', kanji: '職人', english: 'Craftsman', color: '#F59E0B', xp: '5,000' },
-  { name: 'Taisho', kanji: '大将', english: 'Master', color: '#EF4444', xp: '15,000' },
+  { name: 'Taisho', kanji: '大将', english: 'Master', color: '#EF4444', xp: '10,000' },
 ]
 </script>
 

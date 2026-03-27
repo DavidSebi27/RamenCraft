@@ -178,6 +178,18 @@ export async function deleteUser(id) {
 }
 
 // ============================================================
+// Bowls (serve + history)
+// ============================================================
+
+export function serveBowl(payload) {
+  return api.post('/bowls/serve', payload)
+}
+
+export function fetchBowlHistory(params = {}) {
+  return api.get('/bowls/history', { params })
+}
+
+// ============================================================
 // Leaderboard
 // ============================================================
 

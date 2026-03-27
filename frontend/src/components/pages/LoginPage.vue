@@ -1,33 +1,28 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { login } from '@/services/api'
+import { useAuthStore } from '@/stores/auth'
 import NavBar from '@/components/organisms/NavBar/NavBar.vue'
 
 const router = useRouter()
+const auth = useAuthStore()
 
 const email = ref('')
 const password = ref('')
-const error = ref('')
-const loading = ref(false)
 
-async function handleLogin() {
-  error.value = ''
-
+function handleLogin() {
   if (!email.value || !password.value) {
-    error.value = 'Email and password are required'
+    auth.error = 'Email and password are required'
     return
   }
 
-  loading.value = true
-  try {
-    await login(email.value, password.value)
-    router.push('/play')
-  } catch (err) {
-    error.value = err.response?.data?.error || 'Login failed'
-  } finally {
-    loading.value = false
-  }
+  auth.login(email.value, password.value)
+    .then(() => {
+      router.push('/play')
+    })
+    .catch(() => {
+      // Error is already set in the store
+    })
 }
 </script>
 
@@ -38,8 +33,8 @@ async function handleLogin() {
       <div class="w-full max-w-sm">
         <h1 class="font-pixel text-xl text-ramen-orange mb-6 text-center">Login</h1>
 
-        <div v-if="error" class="bg-ramen-red/20 border border-ramen-red text-ramen-cream text-sm px-3 py-2 mb-4">
-          {{ error }}
+        <div v-if="auth.error" class="bg-ramen-red/20 border border-ramen-red text-ramen-cream text-sm px-3 py-2 mb-4">
+          {{ auth.error }}
         </div>
 
         <form @submit.prevent="handleLogin" class="space-y-4">
@@ -65,10 +60,10 @@ async function handleLogin() {
 
           <button
             type="submit"
-            :disabled="loading"
+            :disabled="auth.loading"
             class="w-full font-pixel text-xs bg-ramen-red text-ramen-cream px-4 py-3 hover:bg-ramen-orange transition-colors disabled:opacity-50"
           >
-            {{ loading ? 'LOGGING IN...' : 'LOG IN' }}
+            {{ auth.loading ? 'LOGGING IN...' : 'LOG IN' }}
           </button>
         </form>
 

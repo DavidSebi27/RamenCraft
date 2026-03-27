@@ -69,6 +69,10 @@ $dispatcher = simpleDispatcher(function (RouteCollector $r) {
     $r->addRoute('PUT', '/api/users/{id:\d+}', ['App\Controllers\UserController', 'update']);
     $r->addRoute('DELETE', '/api/users/{id:\d+}', ['App\Controllers\UserController', 'delete']);
 
+    // Bowl routes (authenticated — serve a bowl, view history)
+    $r->addRoute('POST', '/api/bowls/serve', ['App\Controllers\BowlController', 'serve']);
+    $r->addRoute('GET', '/api/bowls/history', ['App\Controllers\BowlController', 'history']);
+
     // Leaderboard route
     $r->addRoute('GET', '/api/leaderboard', ['App\Controllers\LeaderboardController', 'getTopPlayers']);
 });

@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { isLoggedIn, getStoredUser } from '@/services/api'
+import { useAuthStore } from '@/stores/auth'
 
 // Import page components
 // Each page is a top-level view that gets rendered by <router-view> in App.vue
@@ -41,25 +41,22 @@ const router = createRouter({
   routes,
 })
 
-// Navigation guard — runs before every route change
+// Navigation guard — uses the Pinia auth store for reactive state
 router.beforeEach((to) => {
-  const loggedIn = isLoggedIn()
+  const auth = useAuthStore()
 
   // Redirect guests away from protected routes
-  if (to.meta.requiresAuth && !loggedIn) {
+  if (to.meta.requiresAuth && !auth.isLoggedIn) {
     return '/login'
   }
 
   // Redirect non-admins away from admin routes
-  if (to.meta.requiresAdmin && loggedIn) {
-    const user = getStoredUser()
-    if (user?.role !== 'admin') {
-      return '/play'
-    }
+  if (to.meta.requiresAdmin && !auth.isAdmin) {
+    return '/play'
   }
 
   // Redirect logged-in users away from login/register
-  if (to.meta.guestOnly && loggedIn) {
+  if (to.meta.guestOnly && auth.isLoggedIn) {
     return '/play'
   }
 })

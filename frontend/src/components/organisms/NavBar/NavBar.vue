@@ -1,30 +1,16 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { getStoredUser, isLoggedIn, logout } from '@/services/api'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const auth = useAuthStore()
 
 // Controls whether the mobile hamburger menu is open or closed
 const mobileMenuOpen = ref(false)
 
-// Current user (null if not logged in)
-const user = ref(null)
-
-onMounted(() => {
-  if (isLoggedIn()) {
-    user.value = getStoredUser()
-  }
-})
-
-// Re-check user on each navigation (in case login/logout happened)
-router.afterEach(() => {
-  user.value = isLoggedIn() ? getStoredUser() : null
-})
-
 function handleLogout() {
-  logout()
-  user.value = null
+  auth.logout()
   mobileMenuOpen.value = false
   router.push('/')
 }
@@ -61,7 +47,7 @@ const navLinks = [
 
           <!-- Admin link (only for admins) -->
           <router-link
-            v-if="user?.role === 'admin'"
+            v-if="auth.isAdmin"
             to="/admin"
             class="font-pixel text-xs text-ramen-neon hover:text-ramen-orange transition-colors"
           >
@@ -69,8 +55,8 @@ const navLinks = [
           </router-link>
 
           <!-- Logged in: show username + logout -->
-          <template v-if="user">
-            <span class="font-pixel text-xs text-ramen-gold">{{ user.username }}</span>
+          <template v-if="auth.isLoggedIn">
+            <span class="font-pixel text-xs text-ramen-gold">{{ auth.username }}</span>
             <button
               @click="handleLogout"
               class="font-pixel text-xs bg-ramen-brown text-ramen-cream px-3 py-2 hover:bg-ramen-red transition-colors"
@@ -128,7 +114,7 @@ const navLinks = [
 
         <!-- Admin link (mobile, only for admins) -->
         <router-link
-          v-if="user?.role === 'admin'"
+          v-if="auth.isAdmin"
           to="/admin"
           class="font-pixel text-xs text-ramen-neon hover:text-ramen-orange transition-colors py-2"
           @click="mobileMenuOpen = false"
@@ -137,8 +123,8 @@ const navLinks = [
         </router-link>
 
         <!-- Logged in: username + logout (mobile) -->
-        <template v-if="user">
-          <span class="font-pixel text-xs text-ramen-gold py-2">{{ user.username }}</span>
+        <template v-if="auth.isLoggedIn">
+          <span class="font-pixel text-xs text-ramen-gold py-2">{{ auth.username }}</span>
           <button
             @click="handleLogout"
             class="font-pixel text-xs text-ramen-red hover:text-ramen-orange transition-colors py-2 text-left"
