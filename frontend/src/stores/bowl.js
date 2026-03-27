@@ -182,7 +182,7 @@ export const useBowlStore = defineStore('bowl', () => {
     const tastiness = calculateTastiness()
     const nutrition = calculateNutrition()
     const totalScore = tastiness + nutrition
-    const xpEarned = Math.round(totalScore * 1.5)
+    const xpEarned = totalScore
 
     const payload = {
       ingredient_ids: selectedIds.value,

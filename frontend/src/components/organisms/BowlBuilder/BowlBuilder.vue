@@ -171,8 +171,8 @@ const toppingPositions = [
         backgroundColor: oil.color,
         top: [19, 22, 17, 25, 20][index % 5] + '%',
         left: [15, 35, 55, 25, 48][index % 5] + '%',
-        width: '40px',
-        height: '16px',
+        width: '50px',
+        height: '20px',
         opacity: 0.35,
         transform: `rotate(${[-20, 15, -10, 30, -5][index % 5]}deg)`,
       }"
@@ -221,8 +221,8 @@ const toppingPositions = [
 <style scoped>
 .bowl-container {
   position: relative;
-  width: 300px;
-  height: 260px;
+  width: 380px;
+  height: 330px;
   margin: 0 auto;
 }
 
@@ -238,11 +238,11 @@ const toppingPositions = [
 /* Bowl side — short ceramic body, width matches rim exactly */
 .bowl-side {
   position: absolute;
-  top: 62px;
+  top: 78px;
   left: 50%;
   transform: translateX(-50%);
-  width: 280px;
-  height: 130px;
+  width: 355px;
+  height: 165px;
   background: linear-gradient(
     to bottom,
     #4a3728 0%,
@@ -250,7 +250,7 @@ const toppingPositions = [
     #3d2e20 60%,
     #2e2118 100%
   );
-  border-radius: 0 0 140px 140px / 0 0 100px 100px;
+  border-radius: 0 0 178px 178px / 0 0 127px 127px;
   z-index: 10;
   border-bottom: 4px solid #2a1d14;
   border-left: 3px solid #3d2e20;
@@ -260,11 +260,11 @@ const toppingPositions = [
 /* Bowl rim — thick elliptical top edge, flush with side */
 .bowl-rim {
   position: absolute;
-  top: 30px;
+  top: 38px;
   left: 50%;
   transform: translateX(-50%);
-  width: 280px;
-  height: 70px;
+  width: 355px;
+  height: 89px;
   background: linear-gradient(
     to bottom,
     #6b5344 0%,
@@ -279,11 +279,11 @@ const toppingPositions = [
 /* Inner bowl surface visible through the rim */
 .bowl-inner {
   position: absolute;
-  top: 40px;
+  top: 50px;
   left: 50%;
   transform: translateX(-50%);
-  width: 256px;
-  height: 54px;
+  width: 325px;
+  height: 69px;
   background: #1a1a2e;
   border-radius: 50%;
   z-index: 13;
@@ -291,11 +291,11 @@ const toppingPositions = [
 
 .broth-fill {
   position: absolute;
-  top: 39px;
+  top: 49px;
   left: 50%;
   transform: translateX(-50%);
-  width: 252px;
-  height: 56px;
+  width: 320px;
+  height: 71px;
   border-radius: 50%;
   z-index: 20;
   transition: background-color 0.3s ease;
@@ -303,15 +303,15 @@ const toppingPositions = [
 
 .noodle-layer {
   position: absolute;
-  top: 42px;
+  top: 53px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 30;
 }
 
 .noodle-shape {
-  width: 140px;
-  height: 42px;
+  width: 178px;
+  height: 53px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -345,21 +345,21 @@ const toppingPositions = [
 /* Menma — bamboo shoot strips, center of bowl */
 .menma-layer {
   position: absolute;
-  top: 44px;
+  top: 56px;
   left: 50%;
   transform: translateX(-50%);
-  width: 60px;
-  height: 30px;
+  width: 76px;
+  height: 38px;
   z-index: 35;
 }
 
 .menma-piece {
   position: absolute;
-  width: 28px;
-  height: 8px;
+  width: 36px;
+  height: 10px;
   border-radius: 2px;
-  top: 8px;
-  left: 6px;
+  top: 10px;
+  left: 8px;
   transform: rotate(-8deg);
   border: 1px solid rgba(0,0,0,0.15);
 }
@@ -418,8 +418,8 @@ const toppingPositions = [
 }
 
 .protein-shape {
-  width: 48px;
-  height: 28px;
+  width: 60px;
+  height: 35px;
   border-radius: 6px;
   display: flex;
   align-items: center;
@@ -437,8 +437,8 @@ const toppingPositions = [
 }
 
 .topping-shape {
-  width: 24px;
-  height: 24px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -459,8 +459,8 @@ const toppingPositions = [
 }
 
 .nori-sheet {
-  width: 22px;
-  height: 36px;
+  width: 28px;
+  height: 46px;
   border-radius: 2px;
   position: relative;
   transform: perspective(60px) rotateX(-8deg);

@@ -1,24 +1,13 @@
 <script setup>
 /**
- * LeaderboardTable — Displays a ranked list of top players
- *
- * Uses hardcoded fake data for Phase 1.
- * Will be connected to GET /api/leaderboard in Phase 3.
+ * LeaderboardTable — Fetches and displays top players from the API
  */
+import { ref, onMounted } from 'vue'
+import { fetchLeaderboard } from '@/services/api'
 
-// Fake leaderboard data for static display
-const players = [
-  { rank: 1, name: 'NoodleMaster99', xp: 18200, bowls: 342, tier: 'taisho' },
-  { rank: 2, name: 'BrothBoss', xp: 15800, bowls: 289, tier: 'taisho' },
-  { rank: 3, name: 'RamenSenpai', xp: 12400, bowls: 231, tier: 'shokunin' },
-  { rank: 4, name: 'MisoGirl', xp: 8900, bowls: 178, tier: 'shokunin' },
-  { rank: 5, name: 'TonkotsuKing', xp: 6200, bowls: 145, tier: 'shokunin' },
-  { rank: 6, name: 'SlurpLord', xp: 4100, bowls: 98, tier: 'tsuu' },
-  { rank: 7, name: 'Chashu4Life', xp: 2800, bowls: 67, tier: 'tsuu' },
-  { rank: 8, name: 'EggIsLife', xp: 1500, bowls: 42, tier: 'jouren' },
-  { rank: 9, name: 'NoriNinja', xp: 800, bowls: 23, tier: 'jouren' },
-  { rank: 10, name: 'NewbieCook', xp: 150, bowls: 5, tier: 'minarai' },
-]
+const players = ref([])
+const loading = ref(true)
+const error = ref(null)
 
 // Color for each rank tier
 const tierColors = {
@@ -28,54 +17,84 @@ const tierColors = {
   shokunin: '#F59E0B',
   taisho: '#EF4444',
 }
+
+onMounted(() => {
+  fetchLeaderboard(20)
+    .then((data) => {
+      players.value = Array.isArray(data) ? data : (data.data || [])
+    })
+    .catch((err) => {
+      error.value = 'Failed to load leaderboard'
+      console.error(err)
+    })
+    .finally(() => {
+      loading.value = false
+    })
+})
 </script>
 
 <template>
-  <div class="overflow-x-auto">
-    <table class="w-full text-left">
-      <thead>
-        <tr class="border-b border-ramen-brown">
-          <th class="font-pixel text-[8px] text-ramen-cream/40 pb-2 pr-4">#</th>
-          <th class="font-pixel text-[8px] text-ramen-cream/40 pb-2 pr-4">Player</th>
-          <th class="font-pixel text-[8px] text-ramen-cream/40 pb-2 pr-4">XP</th>
-          <th class="font-pixel text-[8px] text-ramen-cream/40 pb-2 hidden sm:table-cell">Bowls</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr
-          v-for="player in players"
-          :key="player.rank"
-          class="border-b border-ramen-brown/30"
-        >
-          <!-- Rank number -->
-          <td class="py-2 pr-4">
-            <span
-              class="font-pixel text-sm"
-              :class="player.rank <= 3 ? 'text-ramen-gold' : 'text-ramen-cream/60'"
-            >
-              {{ player.rank }}
-            </span>
-          </td>
+  <div>
+    <div v-if="loading" class="font-pixel text-[10px] text-ramen-cream/50 text-center py-8">
+      Loading...
+    </div>
+    <div v-else-if="error" class="font-pixel text-[10px] text-ramen-red text-center py-8">
+      {{ error }}
+    </div>
+    <div v-else-if="players.length === 0" class="font-pixel text-[10px] text-ramen-cream/40 text-center py-8">
+      No players yet. Be the first!
+    </div>
+    <div v-else class="overflow-x-auto">
+      <table class="w-full text-left">
+        <thead>
+          <tr class="border-b border-ramen-brown">
+            <th class="font-pixel text-[8px] text-ramen-cream/40 pb-2 pr-4">#</th>
+            <th class="font-pixel text-[8px] text-ramen-cream/40 pb-2 pr-4">Player</th>
+            <th class="font-pixel text-[8px] text-ramen-cream/40 pb-2 pr-4">Rank</th>
+            <th class="font-pixel text-[8px] text-ramen-cream/40 pb-2">XP</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="player in players"
+            :key="player.id"
+            class="border-b border-ramen-brown/30"
+          >
+            <!-- Rank number -->
+            <td class="py-2 pr-4">
+              <span
+                class="font-pixel text-sm"
+                :class="player.rank <= 3 ? 'text-ramen-gold' : 'text-ramen-cream/60'"
+              >
+                {{ player.rank }}
+              </span>
+            </td>
 
-          <!-- Player name + tier indicator -->
-          <td class="py-2 pr-4">
-            <div class="flex items-center gap-2">
-              <span class="w-2 h-2 rounded-sm" :style="{ backgroundColor: tierColors[player.tier] }"></span>
-              <span class="text-sm text-ramen-cream">{{ player.name }}</span>
-            </div>
-          </td>
+            <!-- Player name + tier indicator -->
+            <td class="py-2 pr-4">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-sm" :style="{ backgroundColor: tierColors[player.currentRank] }"></span>
+                <span class="text-sm text-ramen-cream">{{ player.username }}</span>
+              </div>
+            </td>
 
-          <!-- XP -->
-          <td class="py-2 pr-4">
-            <span class="font-pixel text-[10px] text-ramen-gold">{{ player.xp.toLocaleString() }}</span>
-          </td>
+            <!-- Rank title -->
+            <td class="py-2 pr-4">
+              <span
+                class="font-pixel text-[8px] uppercase"
+                :style="{ color: tierColors[player.currentRank] }"
+              >
+                {{ player.currentRank }}
+              </span>
+            </td>
 
-          <!-- Bowls served -->
-          <td class="py-2 hidden sm:table-cell">
-            <span class="text-sm text-ramen-cream/50">{{ player.bowls }}</span>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+            <!-- XP -->
+            <td class="py-2">
+              <span class="font-pixel text-[10px] text-ramen-gold">{{ player.totalXp.toLocaleString() }}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </template>
