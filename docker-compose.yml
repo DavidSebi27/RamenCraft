@@ -1,0 +1,65 @@
+services:
+    # Vue frontend (Vite dev server)
+    frontend:
+        build:
+            context: ./frontend
+            dockerfile: Dockerfile
+        ports:
+            - "5173:5173"
+        volumes:
+            - ./frontend/src:/app/src
+        depends_on:
+            - nginx
+
+    # Nginx reverse proxy for the PHP API
+    nginx:
+        image: nginx:latest
+        ports:
+            - "8000:80"
+        volumes:
+            - ./backend/nginx.conf:/etc/nginx/nginx.conf
+            - ./backend/app:/app
+        depends_on:
+            - php
+
+    # PHP-FPM for the backend API
+    php:
+        build:
+            context: ./backend
+            dockerfile: PHP.Dockerfile
+        volumes:
+            - ./backend/app:/app
+        environment:
+            - DB_HOST=${DB_HOST}
+            - DB_NAME=${DB_NAME}
+            - DB_USER=${DB_USER}
+            - DB_PASS=${DB_PASS}
+            - JWT_SECRET=${JWT_SECRET}
+            - NUTRITION_API_KEY=${NUTRITION_API_KEY}
+        depends_on:
+            - mysql
+
+    # MySQL database
+    mysql:
+        image: mariadb:latest
+        environment:
+            MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+            MYSQL_USER: ${DB_USER}
+            MYSQL_PASSWORD: ${DB_PASS}
+            MYSQL_DATABASE: ${DB_NAME}
+        volumes:
+            - mysqldata:/var/lib/mysql
+            - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+        ports:
+            - "3306:3306"
+
+    # phpMyAdmin for database management
+    phpmyadmin:
+        image: phpmyadmin:latest
+        ports:
+            - "8081:80"
+        environment:
+            - PMA_HOST=mysql
+
+volumes:
+    mysqldata: {}

@@ -56,12 +56,19 @@ $dispatcher = simpleDispatcher(function (RouteCollector $r) {
     $r->addRoute('PUT', '/api/pairings/{id:\d+}', ['App\Controllers\PairingController', 'update']);
     $r->addRoute('DELETE', '/api/pairings/{id:\d+}', ['App\Controllers\PairingController', 'delete']);
 
-    // Achievement routes (full CRUD)
+    // Achievement routes — user-specific routes BEFORE {id} routes
+    $r->addRoute('GET', '/api/achievements/mine', ['App\Controllers\AchievementController', 'getMyAchievements']);
+    $r->addRoute('POST', '/api/achievements/check', ['App\Controllers\AchievementController', 'checkAchievements']);
+    // Achievement CRUD
     $r->addRoute('GET', '/api/achievements', ['App\Controllers\AchievementController', 'getAll']);
     $r->addRoute('GET', '/api/achievements/{id:\d+}', ['App\Controllers\AchievementController', 'get']);
     $r->addRoute('POST', '/api/achievements', ['App\Controllers\AchievementController', 'create']);
     $r->addRoute('PUT', '/api/achievements/{id:\d+}', ['App\Controllers\AchievementController', 'update']);
     $r->addRoute('DELETE', '/api/achievements/{id:\d+}', ['App\Controllers\AchievementController', 'delete']);
+
+    // Nutrition routes (external API — Open Food Facts, server-side with caching)
+    $r->addRoute('GET', '/api/nutrition/ingredient/{id:\d+}', ['App\Controllers\NutritionController', 'getByIngredient']);
+    $r->addRoute('POST', '/api/nutrition/seed', ['App\Controllers\NutritionController', 'seedAll']);
 
     // User routes (no create — that's auth/register in Phase 4)
     $r->addRoute('GET', '/api/users', ['App\Controllers\UserController', 'getAll']);

@@ -172,8 +172,13 @@ class AuthController extends Controller
             $db = Database::getConnection();
 
             $stmt = $db->prepare(
-                "SELECT id, username, email, role, total_xp, current_rank, created_at, updated_at
-                 FROM users WHERE id = :id"
+                "SELECT u.id, u.username, u.email, u.role, u.total_xp, u.current_rank,
+                        u.created_at, u.updated_at,
+                        COUNT(sb.id) AS bowls_served
+                 FROM users u
+                 LEFT JOIN served_bowls sb ON sb.user_id = u.id
+                 WHERE u.id = :id
+                 GROUP BY u.id"
             );
             $stmt->bindValue(':id', (int) $payload->sub, \PDO::PARAM_INT);
             $stmt->execute();
@@ -211,7 +216,7 @@ class AuthController extends Controller
      */
     private function formatUser(array $row): array
     {
-        return [
+        $formatted = [
             'id' => (int) $row['id'],
             'username' => $row['username'],
             'email' => $row['email'],
@@ -221,5 +226,11 @@ class AuthController extends Controller
             'createdAt' => $row['created_at'],
             'updatedAt' => $row['updated_at'],
         ];
+
+        if (isset($row['bowls_served'])) {
+            $formatted['bowlsServed'] = (int) $row['bowls_served'];
+        }
+
+        return $formatted;
     }
 }

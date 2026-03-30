@@ -138,6 +138,16 @@ export async function fetchAchievements(params = {}) {
   return data
 }
 
+export async function fetchMyAchievements(params = {}) {
+  const { data } = await api.get('/achievements/mine', { params })
+  return data
+}
+
+export async function checkAchievements(payload) {
+  const { data } = await api.post('/achievements/check', payload)
+  return data
+}
+
 export async function createAchievement(body) {
   const { data } = await api.post('/achievements', body)
   return data
@@ -150,6 +160,20 @@ export async function updateAchievement(id, body) {
 
 export async function deleteAchievement(id) {
   const { data } = await api.delete(`/achievements/${id}`)
+  return data
+}
+
+// ============================================================
+// Nutrition (Open Food Facts — server-side with caching)
+// ============================================================
+
+export async function fetchNutritionForIngredient(id) {
+  const { data } = await api.get(`/nutrition/ingredient/${id}`)
+  return data
+}
+
+export async function seedNutrition() {
+  const { data } = await api.post('/nutrition/seed')
   return data
 }
 

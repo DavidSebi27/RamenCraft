@@ -201,7 +201,8 @@ class BowlController extends Controller
         $placeholders = implode(',', array_fill(0, count($ingredientIds), '?'));
 
         $stmt = $db->prepare(
-            "SELECT p.*, i1.name AS ingredient_1_name, i2.name AS ingredient_2_name
+            "SELECT p.combo_name, p.score_modifier, p.description,
+                    i1.name AS ingredient_1_name, i2.name AS ingredient_2_name
              FROM pairings p
              JOIN ingredients i1 ON p.ingredient_1_id = i1.id
              JOIN ingredients i2 ON p.ingredient_2_id = i2.id
@@ -209,13 +210,29 @@ class BowlController extends Controller
                AND p.ingredient_2_id IN ({$placeholders})"
         );
 
-        // Bind ingredient IDs twice (once for each IN clause)
         $params = array_merge(
             array_map('intval', $ingredientIds),
             array_map('intval', $ingredientIds)
         );
         $stmt->execute($params);
 
-        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+        // Group by combo_name so duplicates are merged
+        $grouped = [];
+        foreach ($rows as $row) {
+            $name = $row['combo_name'];
+            if (!isset($grouped[$name])) {
+                $grouped[$name] = [
+                    'combo_name' => $name,
+                    'score_modifier' => 0,
+                    'pairs' => [],
+                ];
+            }
+            $grouped[$name]['score_modifier'] += (int) $row['score_modifier'];
+            $grouped[$name]['pairs'][] = $row['ingredient_1_name'] . ' + ' . $row['ingredient_2_name'];
+        }
+
+        return array_values($grouped);
     }
 }

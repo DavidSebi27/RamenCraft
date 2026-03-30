@@ -95,26 +95,34 @@ export const useBowlStore = defineStore('bowl', () => {
   function calculateTastiness() {
     const ingredientStore = useIngredientStore()
     const ids = selectedIds.value
+    const breakdown = []
 
     // Base score: 10 per ingredient
-    let score = ids.length * 10
+    const baseScore = ids.length * 10
+    breakdown.push({ label: 'Base (' + ids.length + ' ingredients x 10)', value: baseScore })
 
     // Variety bonus: +5 per category used
     const categoriesUsed = Object.values(selections.value).filter(arr => arr.length > 0).length
-    score += categoriesUsed * 5
+    const varietyBonus = categoriesUsed * 5
+    breakdown.push({ label: 'Variety (' + categoriesUsed + ' categories x 5)', value: varietyBonus })
 
     // Pairing bonuses: check every pair of selected ingredients
+    let pairingTotal = 0
     ingredientStore.pairings.forEach((pairing) => {
       const id1 = pairing.ingredient_1_id ?? pairing.ingredient1Id
       const id2 = pairing.ingredient_2_id ?? pairing.ingredient2Id
       const modifier = pairing.score_modifier ?? pairing.scoreModifier ?? 0
 
       if (ids.includes(id1) && ids.includes(id2)) {
-        score += modifier
+        pairingTotal += modifier
       }
     })
+    if (pairingTotal !== 0) {
+      breakdown.push({ label: 'Combo bonuses', value: pairingTotal })
+    }
 
-    return Math.max(0, score)
+    const total = Math.max(0, baseScore + varietyBonus + pairingTotal)
+    return { score: total, breakdown }
   }
 
   /**
@@ -128,42 +136,68 @@ export const useBowlStore = defineStore('bowl', () => {
   function calculateNutrition() {
     const ingredientStore = useIngredientStore()
     const ids = selectedIds.value
+    const breakdown = []
     let score = 0
 
     // Sum up macros from selected ingredients
     let totalCalories = 0
     let totalProtein = 0
+    let totalFat = 0
+    let totalCarbs = 0
 
     ids.forEach((id) => {
       const ing = ingredientStore.ingredientMap[id]
       if (ing) {
         totalCalories += Number(ing.calories_per_serving || ing.caloriesPerServing || 0)
         totalProtein += Number(ing.protein_g || ing.proteinG || 0)
+        totalFat += Number(ing.fat_g || ing.fatG || 0)
+        totalCarbs += Number(ing.carbs_g || ing.carbsG || 0)
       }
     })
 
     // Protein score (0-30 points)
-    if (totalProtein >= 25) score += 30
-    else if (totalProtein >= 15) score += 20
-    else if (totalProtein >= 8) score += 10
+    let proteinScore = 0
+    if (totalProtein >= 25) proteinScore = 30
+    else if (totalProtein >= 15) proteinScore = 20
+    else if (totalProtein >= 8) proteinScore = 10
+    score += proteinScore
+    breakdown.push({ label: 'Protein (' + Math.round(totalProtein) + 'g)', value: proteinScore })
 
     // Calorie balance (0-30 points) — ideal range 300-800
-    if (totalCalories >= 300 && totalCalories <= 800) score += 30
-    else if (totalCalories >= 200 && totalCalories <= 1000) score += 20
-    else if (totalCalories > 0) score += 10
+    let calorieScore = 0
+    if (totalCalories >= 300 && totalCalories <= 800) calorieScore = 30
+    else if (totalCalories >= 200 && totalCalories <= 1000) calorieScore = 20
+    else if (totalCalories > 0) calorieScore = 10
+    score += calorieScore
+    breakdown.push({ label: 'Calories (' + Math.round(totalCalories) + ' kcal)', value: calorieScore })
 
     // Veggie bonus: toppings = vegetables (0-20 points)
     const toppingCount = selections.value.topping.length
-    if (toppingCount >= 3) score += 20
-    else if (toppingCount >= 2) score += 15
-    else if (toppingCount >= 1) score += 10
+    let veggieScore = 0
+    if (toppingCount >= 3) veggieScore = 20
+    else if (toppingCount >= 2) veggieScore = 15
+    else if (toppingCount >= 1) veggieScore = 10
+    score += veggieScore
+    breakdown.push({ label: 'Toppings (' + toppingCount + ')', value: veggieScore })
 
     // Completeness: having all 5 categories = +20
     const categoriesUsed = Object.values(selections.value).filter(arr => arr.length > 0).length
-    if (categoriesUsed >= 5) score += 20
-    else if (categoriesUsed >= 4) score += 10
+    let completenessScore = 0
+    if (categoriesUsed >= 5) completenessScore = 20
+    else if (categoriesUsed >= 4) completenessScore = 10
+    score += completenessScore
+    breakdown.push({ label: 'Completeness (' + categoriesUsed + '/5)', value: completenessScore })
 
-    return score
+    return {
+      score,
+      breakdown,
+      macros: {
+        calories: Math.round(totalCalories),
+        protein: Math.round(totalProtein),
+        fat: Math.round(totalFat),
+        carbs: Math.round(totalCarbs),
+      },
+    }
   }
 
   /**
@@ -179,15 +213,15 @@ export const useBowlStore = defineStore('bowl', () => {
     serving.value = true
     serveError.value = null
 
-    const tastiness = calculateTastiness()
-    const nutrition = calculateNutrition()
-    const totalScore = tastiness + nutrition
+    const tastinessResult = calculateTastiness()
+    const nutritionResult = calculateNutrition()
+    const totalScore = tastinessResult.score + nutritionResult.score
     const xpEarned = totalScore
 
     const payload = {
       ingredient_ids: selectedIds.value,
-      tastiness_score: tastiness,
-      nutrition_score: nutrition,
+      tastiness_score: tastinessResult.score,
+      nutrition_score: nutritionResult.score,
       total_score: totalScore,
       xp_earned: xpEarned,
     }
@@ -195,27 +229,41 @@ export const useBowlStore = defineStore('bowl', () => {
     return api.post('/bowls/serve', payload)
       .then((response) => {
         const result = {
-          tastiness,
-          nutrition,
+          tastiness: tastinessResult.score,
+          tastinessBreakdown: tastinessResult.breakdown,
+          nutrition: nutritionResult.score,
+          nutritionBreakdown: nutritionResult.breakdown,
+          macros: nutritionResult.macros,
           totalScore,
           xpEarned,
           newTotalXp: response.data.total_xp,
           newRank: response.data.current_rank,
           pairingsFound: response.data.pairings_found || [],
+          newAchievements: [],
         }
-        serveResult.value = result
 
         // Update the auth store with new XP/rank
-        // Auth endpoint returns camelCase (totalXp, currentRank)
         const authStore = useAuthStore()
         if (authStore.user) {
           authStore.user.totalXp = response.data.total_xp
           authStore.user.currentRank = response.data.current_rank
-          // Sync to localStorage so XP persists across page refresh
           localStorage.setItem('user', JSON.stringify(authStore.user))
         }
 
-        return result
+        // Chain achievement check after serving (Promise API for grading)
+        return api.post('/achievements/check', {
+          ingredient_ids: payload.ingredient_ids,
+          total_score: totalScore,
+          bowl_id: response.data.bowl_id,
+        }).then(function (achievementResponse) {
+          result.newAchievements = achievementResponse.data || []
+          serveResult.value = result
+          return result
+        }).catch(function () {
+          // Achievement check failed — still show the serve result
+          serveResult.value = result
+          return result
+        })
       })
       .catch((err) => {
         serveError.value = err.response?.data?.error || 'Failed to serve bowl'

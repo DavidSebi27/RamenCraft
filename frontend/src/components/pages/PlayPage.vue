@@ -12,11 +12,15 @@ import BowlBuilder from '@/components/organisms/BowlBuilder/BowlBuilder.vue'
 import IngredientCard from '@/components/molecules/IngredientCard/IngredientCard.vue'
 import PixelButton from '@/components/atoms/PixelButton/PixelButton.vue'
 import XPBar from '@/components/atoms/XPBar/XPBar.vue'
+import AchievementToast from '@/components/molecules/AchievementToast/AchievementToast.vue'
 import { useIngredientStore } from '@/stores/ingredients'
 import { useBowlStore } from '@/stores/bowl'
 
 const ingredientStore = useIngredientStore()
 const bowlStore = useBowlStore()
+
+// Achievements unlocked from the latest serve (read from serve result)
+const newAchievements = computed(() => bowlStore.serveResult?.newAchievements || [])
 
 // Current step index (0 = broth, 1 = noodles, ... 4 = topping, 5 = ready to serve)
 const stepIndex = ref(0)
@@ -98,9 +102,12 @@ function serveBowl() {
     })
 }
 
+const showDetails = ref(false)
+
 function resetAndPlayAgain() {
   bowlStore.resetBowl()
   stepIndex.value = 0
+  showDetails.value = false
 }
 
 // Next rank XP threshold for the serve result XP bar
@@ -110,20 +117,8 @@ const serveNextRankXp = computed(() => {
   return next?.minXp || 10000
 })
 
-// Group pairings by combo_name
-const groupedPairings = computed(() => {
-  const pairings = bowlStore.serveResult?.pairingsFound || []
-  const grouped = {}
-  pairings.forEach((p) => {
-    const name = p.combo_name
-    if (!grouped[name]) {
-      grouped[name] = { combo_name: name, total_modifier: 0, descriptions: [] }
-    }
-    grouped[name].total_modifier += p.score_modifier
-    if (p.description) grouped[name].descriptions.push(p.description)
-  })
-  return Object.values(grouped)
-})
+// Pairings are already grouped by combo_name from the backend
+const groupedPairings = computed(() => bowlStore.serveResult?.pairingsFound || [])
 
 onMounted(() => {
   ingredientStore.loadAll()
@@ -133,6 +128,13 @@ onMounted(() => {
 <template>
   <div class="min-h-screen bg-ramen-darker flex flex-col">
     <NavBar />
+
+    <!-- Achievement toast notification (fixed position, always visible) -->
+    <AchievementToast
+      v-if="newAchievements.length > 0"
+      :achievements="newAchievements"
+      @dismiss="bowlStore.serveResult.newAchievements = []"
+    />
 
     <!-- Loading state -->
     <div v-if="ingredientStore.loading" class="flex-1 flex items-center justify-center">
@@ -154,6 +156,8 @@ onMounted(() => {
 
           <div class="bg-ramen-dark border border-ramen-neon p-4 w-full max-w-sm space-y-2">
             <h3 class="font-pixel text-xs text-ramen-neon text-center">Bowl Served!</h3>
+
+            <!-- Score summary -->
             <div class="grid grid-cols-2 gap-2 text-center">
               <div>
                 <div class="font-pixel text-[8px] text-ramen-cream/40">Tastiness</div>
@@ -173,11 +177,75 @@ onMounted(() => {
               </div>
             </div>
 
-            <!-- Pairings found -->
+            <!-- Details toggle -->
+            <button
+              class="font-pixel text-[8px] text-ramen-cream/40 hover:text-ramen-cream w-full text-center pt-1 transition-colors"
+              @click="showDetails = !showDetails"
+            >
+              {{ showDetails ? '- Hide Details' : '+ Show Details' }}
+            </button>
+
+            <!-- Detailed breakdown -->
+            <div v-if="showDetails" class="space-y-2 border-t border-ramen-brown pt-2">
+              <!-- Tastiness breakdown -->
+              <div>
+                <div class="font-pixel text-[8px] text-ramen-orange mb-1">Tastiness Breakdown</div>
+                <div
+                  v-for="(item, i) in bowlStore.serveResult.tastinessBreakdown"
+                  :key="'t' + i"
+                  class="flex justify-between font-pixel text-[7px] text-ramen-cream/60"
+                >
+                  <span>{{ item.label }}</span>
+                  <span :class="item.value >= 0 ? 'text-ramen-neon' : 'text-ramen-red'">
+                    {{ item.value >= 0 ? '+' : '' }}{{ item.value }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Nutrition breakdown -->
+              <div>
+                <div class="font-pixel text-[8px] text-ramen-neon mb-1">Nutrition Breakdown</div>
+                <div
+                  v-for="(item, i) in bowlStore.serveResult.nutritionBreakdown"
+                  :key="'n' + i"
+                  class="flex justify-between font-pixel text-[7px] text-ramen-cream/60"
+                >
+                  <span>{{ item.label }}</span>
+                  <span :class="item.value > 0 ? 'text-ramen-neon' : 'text-ramen-cream/30'">
+                    +{{ item.value }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Macros from real API data -->
+              <div v-if="bowlStore.serveResult.macros" class="border-t border-ramen-brown/50 pt-1">
+                <div class="font-pixel text-[8px] text-ramen-cream/40 mb-1">Actual Macros</div>
+                <div class="grid grid-cols-4 gap-1 text-center">
+                  <div>
+                    <div class="font-pixel text-[7px] text-ramen-cream/30">Cal</div>
+                    <div class="font-pixel text-[8px] text-ramen-cream">{{ bowlStore.serveResult.macros.calories }}</div>
+                  </div>
+                  <div>
+                    <div class="font-pixel text-[7px] text-ramen-cream/30">Prot</div>
+                    <div class="font-pixel text-[8px] text-ramen-cream">{{ bowlStore.serveResult.macros.protein }}g</div>
+                  </div>
+                  <div>
+                    <div class="font-pixel text-[7px] text-ramen-cream/30">Fat</div>
+                    <div class="font-pixel text-[8px] text-ramen-cream">{{ bowlStore.serveResult.macros.fat }}g</div>
+                  </div>
+                  <div>
+                    <div class="font-pixel text-[7px] text-ramen-cream/30">Carbs</div>
+                    <div class="font-pixel text-[8px] text-ramen-cream">{{ bowlStore.serveResult.macros.carbs }}g</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Combos found -->
             <div v-if="groupedPairings.length > 0" class="border-t border-ramen-brown pt-2">
               <div class="font-pixel text-[8px] text-ramen-cream/40 mb-1">Combos Found:</div>
               <div v-for="p in groupedPairings" :key="p.combo_name" class="font-pixel text-[8px] text-ramen-orange">
-                {{ p.combo_name }} ({{ p.total_modifier >= 0 ? '+' : '' }}{{ p.total_modifier }})
+                {{ p.combo_name }} ({{ p.score_modifier >= 0 ? '+' : '' }}{{ p.score_modifier }})
               </div>
             </div>
 
