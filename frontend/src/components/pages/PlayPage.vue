@@ -13,6 +13,7 @@ import IngredientCard from '@/components/molecules/IngredientCard/IngredientCard
 import PixelButton from '@/components/atoms/PixelButton/PixelButton.vue'
 import XPBar from '@/components/atoms/XPBar/XPBar.vue'
 import AchievementToast from '@/components/molecules/AchievementToast/AchievementToast.vue'
+import PixelLoader from '@/components/atoms/PixelLoader/PixelLoader.vue'
 import { useIngredientStore } from '@/stores/ingredients'
 import { useBowlStore } from '@/stores/bowl'
 
@@ -138,7 +139,7 @@ onMounted(() => {
 
     <!-- Loading state -->
     <div v-if="ingredientStore.loading" class="flex-1 flex items-center justify-center">
-      <div class="font-pixel text-[10px] text-ramen-cream/50">Loading ingredients...</div>
+      <PixelLoader text="Loading ingredients..." />
     </div>
 
     <!-- Error state -->

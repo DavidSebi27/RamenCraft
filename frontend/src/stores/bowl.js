@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useAuthStore } from './auth'
 import { useIngredientStore } from './ingredients'
+import { playSound } from '@/utils/sounds'
 import api from '@/services/api'
 
 /**
@@ -258,6 +259,10 @@ export const useBowlStore = defineStore('bowl', () => {
         }).then(function (achievementResponse) {
           result.newAchievements = achievementResponse.data || []
           serveResult.value = result
+          playSound('serve', 0.4)
+          if (result.newAchievements.length > 0) {
+            setTimeout(function () { playSound('achievement', 0.4) }, 800)
+          }
           return result
         }).catch(function () {
           // Achievement check failed — still show the serve result

@@ -32,7 +32,16 @@ const props = defineProps({
   },
 })
 
-defineEmits(['click'])
+import { playSound } from '@/utils/sounds'
+
+const emit = defineEmits(['click'])
+
+function handleClick() {
+  if (!props.disabled) {
+    playSound('click')
+    emit('click')
+  }
+}
 </script>
 
 <template>
@@ -51,7 +60,7 @@ defineEmits(['click'])
       size === 'md' ? 'text-xs px-4 py-2.5' : '',
       size === 'lg' ? 'text-sm px-6 py-3' : '',
     ]"
-    @click="!disabled && $emit('click')"
+    @click="handleClick"
   >
     {{ label }}
   </button>

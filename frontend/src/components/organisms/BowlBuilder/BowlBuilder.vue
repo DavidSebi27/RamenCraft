@@ -207,6 +207,18 @@ const toppingPositions = [
       </div>
     </div>
 
+    <!-- Steam animation — rises from the bowl when broth is selected -->
+    <div v-if="selectedBroth" style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 300px; height: 60px; z-index: 999; pointer-events: none;">
+      <div class="steam-particle steam-1"></div>
+      <div class="steam-particle steam-2"></div>
+      <div class="steam-particle steam-3"></div>
+      <div class="steam-particle steam-4"></div>
+      <div class="steam-particle steam-5"></div>
+      <div class="steam-particle steam-6"></div>
+      <div class="steam-particle steam-7"></div>
+      <div class="steam-particle steam-8"></div>
+    </div>
+
     <!-- Empty state hint -->
     <div v-if="!selectedBroth && !selectedNoodles"
       class="empty-hint"
@@ -224,6 +236,7 @@ const toppingPositions = [
   width: 380px;
   height: 330px;
   margin: 0 auto;
+  overflow: visible;
 }
 
 /*
@@ -485,4 +498,104 @@ const toppingPositions = [
   justify-content: center;
   z-index: 70;
 }
+
+/* Steam — pixel-art styled rising particles
+ * Container spans from top of bowl-container to the broth surface.
+ * Particles start at bottom (broth) and rise to top (above bowl). */
+.steam-container {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 60px;
+  z-index: 80;
+  pointer-events: none;
+}
+
+.steam-particle {
+  position: absolute;
+  bottom: 0;
+  background: white;
+  border-radius: 0;
+  image-rendering: pixelated;
+  animation: steam-rise ease-out infinite;
+}
+
+/* Each particle spread across the full bowl width */
+.steam-1 {
+  width: 6px; height: 6px;
+  left: 15%;
+  animation-duration: 2.4s;
+  animation-delay: 0s;
+}
+.steam-2 {
+  width: 8px; height: 8px;
+  left: 70%;
+  animation-duration: 2.8s;
+  animation-delay: 0.5s;
+}
+.steam-3 {
+  width: 6px; height: 6px;
+  left: 40%;
+  animation-duration: 2.1s;
+  animation-delay: 1.0s;
+}
+.steam-4 {
+  width: 10px; height: 10px;
+  left: 80%;
+  animation-duration: 3.2s;
+  animation-delay: 0.3s;
+}
+.steam-5 {
+  width: 6px; height: 6px;
+  left: 25%;
+  animation-duration: 2.6s;
+  animation-delay: 1.5s;
+}
+.steam-6 {
+  width: 8px; height: 8px;
+  left: 55%;
+  animation-duration: 3.0s;
+  animation-delay: 0.8s;
+}
+.steam-7 {
+  width: 6px; height: 6px;
+  left: 35%;
+  animation-duration: 2.3s;
+  animation-delay: 1.2s;
+}
+.steam-8 {
+  width: 8px; height: 8px;
+  left: 65%;
+  animation-duration: 2.7s;
+  animation-delay: 0.2s;
+}
+
+@keyframes steam-rise {
+  0% {
+    transform: translateY(0) translateX(0) scale(1);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.5;
+  }
+  40% {
+    opacity: 0.3;
+  }
+  100% {
+    transform: translateY(-50px) translateX(var(--drift, 8px)) scale(1.8);
+    opacity: 0;
+  }
+}
+
+/* Alternate drift directions */
+.steam-1 { --drift: -6px; }
+.steam-2 { --drift: 10px; }
+.steam-3 { --drift: -12px; }
+.steam-4 { --drift: 5px; }
+.steam-5 { --drift: -8px; }
+.steam-6 { --drift: 14px; }
+.steam-7 { --drift: -10px; }
+.steam-8 { --drift: 7px; }
 </style>

@@ -22,7 +22,14 @@ defineProps({
   },
 })
 
-defineEmits(['select'])
+import { playSound } from '@/utils/sounds'
+
+const emit = defineEmits(['select'])
+
+function handleSelect(ingredient) {
+  playSound('select', 0.2)
+  emit('select', ingredient)
+}
 </script>
 
 <template>
@@ -32,7 +39,7 @@ defineEmits(['select'])
       ? 'border-ramen-gold bg-ramen-dark shadow-[0_0_8px_rgba(255,215,0,0.3)]'
       : 'border-ramen-brown bg-ramen-darker hover:border-ramen-cream/40'
     "
-    @click="$emit('select', ingredient)"
+    @click="handleSelect(ingredient)"
   >
     <IngredientIcon
       :src="ingredient.spriteIcon"
