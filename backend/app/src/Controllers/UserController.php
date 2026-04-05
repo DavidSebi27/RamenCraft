@@ -32,15 +32,38 @@ class UserController extends Controller
             $limit = min(50, max(1, (int) ($_GET['limit'] ?? 10)));
             $offset = ($page - 1) * $limit;
 
-            $countStmt = $db->query("SELECT COUNT(*) FROM users");
+            $where = '';
+            $params = [];
+
+            if (!empty($_GET['search'])) {
+                $where = "WHERE (username LIKE :search OR email LIKE :search2)";
+                $params[':search'] = '%' . $_GET['search'] . '%';
+                $params[':search2'] = '%' . $_GET['search'] . '%';
+            }
+
+            if (!empty($_GET['role'])) {
+                $where .= ($where ? ' AND' : 'WHERE') . ' role = :role';
+                $params[':role'] = $_GET['role'];
+            }
+
+            if (!empty($_GET['rank'])) {
+                $where .= ($where ? ' AND' : 'WHERE') . ' current_rank = :rank';
+                $params[':rank'] = $_GET['rank'];
+            }
+
+            $countStmt = $db->prepare("SELECT COUNT(*) FROM users {$where}");
+            $countStmt->execute($params);
             $total = (int) $countStmt->fetchColumn();
 
             $sql = "SELECT id, username, email, role, total_xp, current_rank, created_at, updated_at
-                    FROM users
+                    FROM users {$where}
                     ORDER BY id ASC
                     LIMIT :limit OFFSET :offset";
 
             $stmt = $db->prepare($sql);
+            foreach ($params as $key => $val) {
+                $stmt->bindValue($key, $val);
+            }
             $stmt->bindValue(':limit', $limit, \PDO::PARAM_INT);
             $stmt->bindValue(':offset', $offset, \PDO::PARAM_INT);
             $stmt->execute();

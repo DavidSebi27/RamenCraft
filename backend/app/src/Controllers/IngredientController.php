@@ -46,6 +46,14 @@ class IngredientController extends Controller
                 $params[':category'] = $categoryFilter;
             }
 
+            // Search by ingredient name or description
+            $search = $_GET['search'] ?? null;
+            if ($search) {
+                $where .= ($where ? ' AND' : 'WHERE') . ' (i.name LIKE :search OR i.description LIKE :search2)';
+                $params[':search'] = '%' . $search . '%';
+                $params[':search2'] = '%' . $search . '%';
+            }
+
             // Count total matching rows (for pagination metadata)
             $countSql = "SELECT COUNT(*) FROM ingredients i
                          JOIN categories c ON i.category_id = c.id

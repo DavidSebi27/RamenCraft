@@ -202,6 +202,30 @@ export async function deleteUser(id) {
 }
 
 // ============================================================
+// Favorites
+// ============================================================
+
+export async function fetchFavorites(params = {}) {
+  const { data } = await api.get('/favorites', { params })
+  return data
+}
+
+export async function fetchFavoriteById(id) {
+  const { data } = await api.get(`/favorites/${id}`)
+  return data
+}
+
+export async function saveFavorite(name, ingredientIds) {
+  const { data } = await api.post('/favorites', { name, ingredient_ids: ingredientIds })
+  return data
+}
+
+export async function deleteFavorite(id) {
+  const { data } = await api.delete(`/favorites/${id}`)
+  return data
+}
+
+// ============================================================
 // Bowls (serve + history)
 // ============================================================
 

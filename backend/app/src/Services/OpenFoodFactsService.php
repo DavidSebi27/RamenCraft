@@ -75,8 +75,10 @@ class OpenFoodFactsService
         // 2. Call external API
         $response = $this->callApi($searchQuery);
 
-        // 3. Cache the response
-        $this->saveToCache($hash, $response);
+        // 3. Only cache if we got actual products (don't cache empty/failed responses)
+        if (!empty($response['products'])) {
+            $this->saveToCache($hash, $response);
+        }
 
         return $this->extractNutrients($response);
     }

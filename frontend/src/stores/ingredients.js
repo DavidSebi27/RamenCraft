@@ -37,7 +37,9 @@ export const useIngredientStore = defineStore('ingredients', () => {
 
     // Step 1: fetch categories, then fetch ingredients per category in parallel
     return fetchCategories()
-      .then((cats) => {
+      .then((response) => {
+        // Handle both { data: [...] } and flat array formats
+        const cats = Array.isArray(response) ? response : (response.data || [])
         categories.value = cats.sort((a, b) => a.sortOrder - b.sortOrder)
 
         // Step 2: Promise.all — fetch all category ingredients in parallel

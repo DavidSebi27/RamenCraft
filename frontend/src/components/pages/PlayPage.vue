@@ -16,9 +16,11 @@ import AchievementToast from '@/components/molecules/AchievementToast/Achievemen
 import PixelLoader from '@/components/atoms/PixelLoader/PixelLoader.vue'
 import { useIngredientStore } from '@/stores/ingredients'
 import { useBowlStore } from '@/stores/bowl'
+import { useFavoritesStore } from '@/stores/favorites'
 
 const ingredientStore = useIngredientStore()
 const bowlStore = useBowlStore()
+const favoritesStore = useFavoritesStore()
 
 // Achievements unlocked from the latest serve (read from serve result)
 const newAchievements = computed(() => bowlStore.serveResult?.newAchievements || [])
@@ -104,11 +106,29 @@ function serveBowl() {
 }
 
 const showDetails = ref(false)
+const favName = ref('')
+const favSaved = ref(false)
+const favSaving = ref(false)
 
 function resetAndPlayAgain() {
   bowlStore.resetBowl()
   stepIndex.value = 0
   showDetails.value = false
+  favName.value = ''
+  favSaved.value = false
+}
+
+function saveFavorite() {
+  if (!favName.value.trim() || favSaving.value) return
+  favSaving.value = true
+  favoritesStore.save(favName.value.trim(), bowlStore.selectedIds)
+    .then(() => {
+      favSaved.value = true
+    })
+    .catch(() => {})
+    .finally(() => {
+      favSaving.value = false
+    })
 }
 
 // Next rank XP threshold for the serve result XP bar
@@ -260,6 +280,28 @@ onMounted(() => {
                 :current-x-p="bowlStore.serveResult.newTotalXp"
                 :max-x-p="serveNextRankXp"
               />
+            </div>
+
+            <!-- Save as favorite -->
+            <div class="border-t border-ramen-brown pt-2">
+              <div v-if="favSaved" class="font-pixel text-[8px] text-ramen-neon text-center">
+                Saved!
+              </div>
+              <div v-else class="flex gap-2 items-center">
+                <input
+                  v-model="favName"
+                  type="text"
+                  placeholder="Name this bowl..."
+                  class="flex-1 bg-ramen-darker border border-ramen-brown px-2 py-1.5 font-pixel text-[8px] text-ramen-cream placeholder-ramen-cream/30 outline-none focus:border-ramen-gold"
+                />
+                <PixelButton
+                  :label="favSaving ? '...' : 'SAVE'"
+                  variant="secondary"
+                  size="sm"
+                  :disabled="!favName.trim() || favSaving"
+                  @click="saveFavorite"
+                />
+              </div>
             </div>
 
             <div class="flex justify-center pt-1">

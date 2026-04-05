@@ -31,8 +31,26 @@ class PairingController extends Controller
             $limit = min(50, max(1, (int) ($_GET['limit'] ?? 20)));
             $offset = ($page - 1) * $limit;
 
+            // Build WHERE clause
+            $where = '';
+            $params = [];
+
+            if (!empty($_GET['search'])) {
+                $where = "WHERE p.combo_name LIKE :search OR p.description LIKE :search2";
+                $params[':search'] = '%' . $_GET['search'] . '%';
+                $params[':search2'] = '%' . $_GET['search'] . '%';
+            }
+
+            if (!empty($_GET['ingredient_id'])) {
+                $where .= ($where ? ' AND' : 'WHERE') . ' (p.ingredient_1_id = :iid OR p.ingredient_2_id = :iid2)';
+                $params[':iid'] = (int) $_GET['ingredient_id'];
+                $params[':iid2'] = (int) $_GET['ingredient_id'];
+            }
+
             // Count total
-            $countStmt = $db->query("SELECT COUNT(*) FROM pairings");
+            $countSql = "SELECT COUNT(*) FROM pairings p {$where}";
+            $countStmt = $db->prepare($countSql);
+            $countStmt->execute($params);
             $total = (int) $countStmt->fetchColumn();
 
             // Fetch with ingredient names
@@ -42,10 +60,14 @@ class PairingController extends Controller
                     FROM pairings p
                     JOIN ingredients i1 ON p.ingredient_1_id = i1.id
                     JOIN ingredients i2 ON p.ingredient_2_id = i2.id
+                    {$where}
                     ORDER BY p.id ASC
                     LIMIT :limit OFFSET :offset";
 
             $stmt = $db->prepare($sql);
+            foreach ($params as $key => $val) {
+                $stmt->bindValue($key, $val);
+            }
             $stmt->bindValue(':limit', $limit, \PDO::PARAM_INT);
             $stmt->bindValue(':offset', $offset, \PDO::PARAM_INT);
             $stmt->execute();

@@ -31,11 +31,29 @@ class AchievementController extends Controller
             $limit = min(50, max(1, (int) ($_GET['limit'] ?? 20)));
             $offset = ($page - 1) * $limit;
 
-            $countStmt = $db->query("SELECT COUNT(*) FROM achievements");
+            $where = '';
+            $params = [];
+
+            if (!empty($_GET['search'])) {
+                $where = "WHERE name LIKE :search OR description LIKE :search2";
+                $params[':search'] = '%' . $_GET['search'] . '%';
+                $params[':search2'] = '%' . $_GET['search'] . '%';
+            }
+
+            if (!empty($_GET['requirement_type'])) {
+                $where .= ($where ? ' AND' : 'WHERE') . ' requirement_type = :rtype';
+                $params[':rtype'] = $_GET['requirement_type'];
+            }
+
+            $countStmt = $db->prepare("SELECT COUNT(*) FROM achievements {$where}");
+            $countStmt->execute($params);
             $total = (int) $countStmt->fetchColumn();
 
-            $sql = "SELECT * FROM achievements ORDER BY id ASC LIMIT :limit OFFSET :offset";
+            $sql = "SELECT * FROM achievements {$where} ORDER BY id ASC LIMIT :limit OFFSET :offset";
             $stmt = $db->prepare($sql);
+            foreach ($params as $key => $val) {
+                $stmt->bindValue($key, $val);
+            }
             $stmt->bindValue(':limit', $limit, \PDO::PARAM_INT);
             $stmt->bindValue(':offset', $offset, \PDO::PARAM_INT);
             $stmt->execute();

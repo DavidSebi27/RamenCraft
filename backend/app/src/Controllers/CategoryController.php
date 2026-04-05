@@ -24,10 +24,34 @@ class CategoryController extends Controller
         try {
             $db = Database::getConnection();
 
-            $stmt = $db->query("SELECT * FROM categories ORDER BY sort_order ASC");
+            $page = max(1, (int) ($_GET['page'] ?? 1));
+            $limit = min(50, max(1, (int) ($_GET['limit'] ?? 20)));
+            $offset = ($page - 1) * $limit;
+
+            $where = '';
+            $params = [];
+
+            // Search by name or display_name
+            if (!empty($_GET['search'])) {
+                $where = "WHERE name LIKE :search OR display_name LIKE :search2";
+                $params[':search'] = '%' . $_GET['search'] . '%';
+                $params[':search2'] = '%' . $_GET['search'] . '%';
+            }
+
+            $countStmt = $db->prepare("SELECT COUNT(*) FROM categories {$where}");
+            $countStmt->execute($params);
+            $total = (int) $countStmt->fetchColumn();
+
+            $sql = "SELECT * FROM categories {$where} ORDER BY sort_order ASC LIMIT :limit OFFSET :offset";
+            $stmt = $db->prepare($sql);
+            foreach ($params as $key => $val) {
+                $stmt->bindValue($key, $val);
+            }
+            $stmt->bindValue(':limit', $limit, \PDO::PARAM_INT);
+            $stmt->bindValue(':offset', $offset, \PDO::PARAM_INT);
+            $stmt->execute();
             $rows = $stmt->fetchAll();
 
-            // Convert snake_case DB rows to camelCase for the frontend
             $categories = array_map(function ($row) {
                 return [
                     'id' => (int) $row['id'],
@@ -37,7 +61,12 @@ class CategoryController extends Controller
                 ];
             }, $rows);
 
-            $this->sendSuccessResponse($categories);
+            $this->sendSuccessResponse([
+                'data' => $categories,
+                'page' => $page,
+                'limit' => $limit,
+                'total' => $total,
+            ]);
         } catch (\Exception $e) {
             $this->sendErrorResponse('Failed to fetch categories: ' . $e->getMessage(), 500);
         }

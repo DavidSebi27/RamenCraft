@@ -76,6 +76,12 @@ $dispatcher = simpleDispatcher(function (RouteCollector $r) {
     $r->addRoute('PUT', '/api/users/{id:\d+}', ['App\Controllers\UserController', 'update']);
     $r->addRoute('DELETE', '/api/users/{id:\d+}', ['App\Controllers\UserController', 'delete']);
 
+    // Favorites routes (authenticated — save/load bowl configs)
+    $r->addRoute('GET', '/api/favorites', ['App\Controllers\FavoritesController', 'getAll']);
+    $r->addRoute('GET', '/api/favorites/{id:\d+}', ['App\Controllers\FavoritesController', 'get']);
+    $r->addRoute('POST', '/api/favorites', ['App\Controllers\FavoritesController', 'create']);
+    $r->addRoute('DELETE', '/api/favorites/{id:\d+}', ['App\Controllers\FavoritesController', 'delete']);
+
     // Bowl routes (authenticated — serve a bowl, view history)
     $r->addRoute('POST', '/api/bowls/serve', ['App\Controllers\BowlController', 'serve']);
     $r->addRoute('GET', '/api/bowls/history', ['App\Controllers\BowlController', 'history']);
