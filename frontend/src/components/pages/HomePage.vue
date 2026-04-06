@@ -7,6 +7,7 @@
  */
 import PixelButton from '@/components/atoms/PixelButton/PixelButton.vue'
 import { useRouter } from 'vue-router'
+import outsideBg from '@/assets/Graphics/restaurant.outside.png'
 
 const router = useRouter()
 
@@ -21,10 +22,15 @@ const ranks = [
 </script>
 
 <template>
-  <div class="min-h-screen bg-ramen-darker flex flex-col">
+  <div
+    class="min-h-screen flex flex-col bg-cover bg-center bg-no-repeat relative"
+    :style="{ backgroundImage: `url(${outsideBg})`, backgroundColor: '#0f0f1a' }"
+  >
+    <!-- Dark overlay for contrast -->
+    <div class="absolute inset-0 bg-black/60"></div>
 
     <!-- Hero section -->
-    <div class="flex-1 flex flex-col items-center justify-center px-4 py-12">
+    <div class="flex-1 flex flex-col items-center justify-center px-4 py-12 relative z-10">
       <!-- Title -->
       <h1 class="font-pixel text-3xl sm:text-4xl md:text-5xl text-ramen-orange mb-4 text-center">
         RamenCraft
@@ -55,7 +61,7 @@ const ranks = [
     </div>
 
     <!-- Rank preview section -->
-    <div class="px-4 pb-12">
+    <div class="px-4 pb-12 relative z-10">
       <h2 class="font-pixel text-xs text-ramen-cream/40 text-center mb-4">Ramen Ranks</h2>
       <div class="flex flex-wrap justify-center gap-3 max-w-2xl mx-auto">
         <div

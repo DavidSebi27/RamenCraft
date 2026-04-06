@@ -17,6 +17,7 @@ import PixelLoader from '@/components/atoms/PixelLoader/PixelLoader.vue'
 import { useIngredientStore } from '@/stores/ingredients'
 import { useBowlStore } from '@/stores/bowl'
 import { useFavoritesStore } from '@/stores/favorites'
+import restaurantBg from '@/assets/Graphics/restaurant.inside.png'
 
 const ingredientStore = useIngredientStore()
 const bowlStore = useBowlStore()
@@ -25,13 +26,28 @@ const favoritesStore = useFavoritesStore()
 // Achievements unlocked from the latest serve (read from serve result)
 const newAchievements = computed(() => bowlStore.serveResult?.newAchievements || [])
 
-// Current step index (0 = broth, 1 = noodles, ... 4 = topping, 5 = ready to serve)
-const stepIndex = ref(0)
+// Bowl color selection (step 0, purely cosmetic)
+import blueBowl from '@/assets/Graphics/blue.bowl.png'
+import greenBowl from '@/assets/Graphics/green.bowl.png'
+import orangeBowl from '@/assets/Graphics/orange.bowl.png'
+import redBowl from '@/assets/Graphics/red.bowl.png'
+
+const bowlOptions = [
+  { name: 'Blue', src: blueBowl, color: '#60A5FA' },
+  { name: 'Green', src: greenBowl, color: '#4ADE80' },
+  { name: 'Orange', src: orangeBowl, color: '#FB923C' },
+  { name: 'Red', src: redBowl, color: '#EF4444' },
+]
+const selectedBowl = ref(null)
+
+// Current step: -1 = bowl pick, 0..4 = categories, 5 = serve
+const stepIndex = ref(-1)
 
 const multiSelectCategories = ['oil', 'protein', 'topping']
 
-// Current category being picked
-const currentCategory = computed(() => ingredientStore.categories[stepIndex.value] || null)
+// Current category being picked (offset by 1 since step -1 is bowl)
+const categoryIndex = computed(() => stepIndex.value)
+const currentCategory = computed(() => ingredientStore.categories[categoryIndex.value] || null)
 const currentIngredients = computed(() => {
   if (!currentCategory.value) return []
   return ingredientStore.ingredientsByCategory[currentCategory.value.name] || []
@@ -39,11 +55,13 @@ const currentIngredients = computed(() => {
 const isMultiSelect = computed(() =>
   currentCategory.value && multiSelectCategories.includes(currentCategory.value.name)
 )
+const isBowlStep = computed(() => stepIndex.value === -1)
 const isLastStep = computed(() => stepIndex.value >= ingredientStore.categories.length)
-const totalSteps = computed(() => ingredientStore.categories.length)
+const totalSteps = computed(() => ingredientStore.categories.length + 1) // +1 for bowl
 
 // Step indicator text
 const stepLabel = computed(() => {
+  if (isBowlStep.value) return 'Bowl'
   if (isLastStep.value) return 'Ready to Serve!'
   return `${currentCategory.value?.displayName || ''}`
 })
@@ -62,13 +80,9 @@ function handleSelect(ingredient) {
       : [...current, ingredient.id]
     updateCategory(catName, newIds)
   } else {
-    // Single select — pick and auto-advance
+    // Single select — toggle on/off, no auto-advance
     const newIds = current.includes(ingredient.id) ? [] : [ingredient.id]
     updateCategory(catName, newIds)
-    // Auto-advance for single select after a short delay
-    if (newIds.length > 0) {
-      setTimeout(() => nextStep(), 300)
-    }
   }
 }
 
@@ -112,10 +126,15 @@ const favSaving = ref(false)
 
 function resetAndPlayAgain() {
   bowlStore.resetBowl()
-  stepIndex.value = 0
+  selectedBowl.value = null
+  stepIndex.value = -1
   showDetails.value = false
   favName.value = ''
   favSaved.value = false
+}
+
+function pickBowl(bowl) {
+  selectedBowl.value = selectedBowl.value?.name === bowl.name ? null : bowl
 }
 
 function saveFavorite() {
@@ -147,7 +166,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-ramen-darker flex flex-col">
+  <div class="min-h-screen flex flex-col bg-ramen-darker">
     <NavBar />
 
     <!-- Achievement toast notification (fixed position, always visible) -->
@@ -168,39 +187,51 @@ onMounted(() => {
     </div>
 
     <!-- Game layout -->
-    <div v-else class="flex-1 flex flex-col items-center justify-end px-4 py-6 gap-4">
+    <div
+      v-else
+      class="flex-1 flex flex-col items-center justify-end px-4 py-6 gap-4 bg-cover bg-center bg-no-repeat"
+      :style="{ backgroundImage: `url(${restaurantBg})`, imageRendering: 'pixelated', backgroundColor: '#1a1018' }"
+    >
 
-      <!-- Serve result overlay (after serving) -->
+      <!-- Serve result overlay (after serving) — horizontal layout -->
       <template v-if="bowlStore.serveResult">
-        <div class="flex-1 flex flex-col items-center justify-center gap-4">
-          <BowlBuilder :selections="bowlStore.selections" :ingredient-map="ingredientStore.ingredientMap" />
+        <div class="flex-1 flex items-center justify-center gap-8 px-4">
+          <!-- Left: Bowl -->
+          <div class="flex-shrink-0">
+            <BowlBuilder :selections="bowlStore.selections" :ingredient-map="ingredientStore.ingredientMap" :bowl-sprite="selectedBowl?.src" />
+          </div>
 
-          <div class="bg-ramen-dark border border-ramen-neon p-4 w-full max-w-sm space-y-2">
-            <h3 class="font-pixel text-xs text-ramen-neon text-center">Bowl Served!</h3>
+          <!-- Right: Stats panel -->
+          <div class="bg-ramen-dark/95 border-2 border-ramen-gold/60 p-5 w-80 max-h-[80vh] overflow-y-auto space-y-3 shadow-lg shadow-ramen-gold/10 serve-panel">
+            <h3 class="font-pixel text-sm text-ramen-gold text-center mb-1 animate-pulse">Bowl Served!</h3>
 
-            <!-- Score summary -->
-            <div class="grid grid-cols-2 gap-2 text-center">
+            <!-- Big total score -->
+            <div class="text-center py-2">
+              <div class="font-pixel text-3xl text-ramen-gold score-glow">{{ bowlStore.serveResult.totalScore }}</div>
+              <div class="font-pixel text-[8px] text-ramen-cream/40 mt-1">TOTAL SCORE</div>
+            </div>
+
+            <!-- Score breakdown row -->
+            <div class="flex justify-around text-center border-t border-b border-ramen-brown/50 py-2">
               <div>
-                <div class="font-pixel text-[8px] text-ramen-cream/40">Tastiness</div>
                 <div class="font-pixel text-sm text-ramen-orange">{{ bowlStore.serveResult.tastiness }}</div>
+                <div class="font-pixel text-[6px] text-ramen-cream/40">TASTE</div>
               </div>
+              <div class="w-px bg-ramen-brown/50"></div>
               <div>
-                <div class="font-pixel text-[8px] text-ramen-cream/40">Nutrition</div>
                 <div class="font-pixel text-sm text-ramen-neon">{{ bowlStore.serveResult.nutrition }}</div>
+                <div class="font-pixel text-[6px] text-ramen-cream/40">NUTRITION</div>
               </div>
+              <div class="w-px bg-ramen-brown/50"></div>
               <div>
-                <div class="font-pixel text-[8px] text-ramen-cream/40">Total</div>
-                <div class="font-pixel text-sm text-ramen-gold">{{ bowlStore.serveResult.totalScore }}</div>
-              </div>
-              <div>
-                <div class="font-pixel text-[8px] text-ramen-cream/40">XP Earned</div>
                 <div class="font-pixel text-sm text-ramen-gold">+{{ bowlStore.serveResult.xpEarned }}</div>
+                <div class="font-pixel text-[6px] text-ramen-cream/40">XP EARNED</div>
               </div>
             </div>
 
             <!-- Details toggle -->
             <button
-              class="font-pixel text-[8px] text-ramen-cream/40 hover:text-ramen-cream w-full text-center pt-1 transition-colors"
+              class="font-pixel text-[8px] text-ramen-cream/40 hover:text-ramen-cream w-full text-center transition-colors"
               @click="showDetails = !showDetails"
             >
               {{ showDetails ? '- Hide Details' : '+ Show Details' }}
@@ -208,104 +239,63 @@ onMounted(() => {
 
             <!-- Detailed breakdown -->
             <div v-if="showDetails" class="space-y-2 border-t border-ramen-brown pt-2">
-              <!-- Tastiness breakdown -->
               <div>
-                <div class="font-pixel text-[8px] text-ramen-orange mb-1">Tastiness Breakdown</div>
-                <div
-                  v-for="(item, i) in bowlStore.serveResult.tastinessBreakdown"
-                  :key="'t' + i"
-                  class="flex justify-between font-pixel text-[7px] text-ramen-cream/60"
-                >
+                <div class="font-pixel text-[7px] text-ramen-orange mb-1">Tastiness</div>
+                <div v-for="(item, i) in bowlStore.serveResult.tastinessBreakdown" :key="'t' + i"
+                  class="flex justify-between font-pixel text-[7px] text-ramen-cream/60">
                   <span>{{ item.label }}</span>
-                  <span :class="item.value >= 0 ? 'text-ramen-neon' : 'text-ramen-red'">
-                    {{ item.value >= 0 ? '+' : '' }}{{ item.value }}
-                  </span>
+                  <span :class="item.value >= 0 ? 'text-ramen-neon' : 'text-ramen-red'">{{ item.value >= 0 ? '+' : '' }}{{ item.value }}</span>
                 </div>
               </div>
-
-              <!-- Nutrition breakdown -->
               <div>
-                <div class="font-pixel text-[8px] text-ramen-neon mb-1">Nutrition Breakdown</div>
-                <div
-                  v-for="(item, i) in bowlStore.serveResult.nutritionBreakdown"
-                  :key="'n' + i"
-                  class="flex justify-between font-pixel text-[7px] text-ramen-cream/60"
-                >
+                <div class="font-pixel text-[7px] text-ramen-neon mb-1">Nutrition</div>
+                <div v-for="(item, i) in bowlStore.serveResult.nutritionBreakdown" :key="'n' + i"
+                  class="flex justify-between font-pixel text-[7px] text-ramen-cream/60">
                   <span>{{ item.label }}</span>
-                  <span :class="item.value > 0 ? 'text-ramen-neon' : 'text-ramen-cream/30'">
-                    +{{ item.value }}
-                  </span>
+                  <span :class="item.value > 0 ? 'text-ramen-neon' : 'text-ramen-cream/30'">+{{ item.value }}</span>
                 </div>
               </div>
-
-              <!-- Macros from real API data -->
-              <div v-if="bowlStore.serveResult.macros" class="border-t border-ramen-brown/50 pt-1">
-                <div class="font-pixel text-[8px] text-ramen-cream/40 mb-1">Actual Macros</div>
-                <div class="grid grid-cols-4 gap-1 text-center">
-                  <div>
-                    <div class="font-pixel text-[7px] text-ramen-cream/30">Cal</div>
-                    <div class="font-pixel text-[8px] text-ramen-cream">{{ bowlStore.serveResult.macros.calories }}</div>
-                  </div>
-                  <div>
-                    <div class="font-pixel text-[7px] text-ramen-cream/30">Prot</div>
-                    <div class="font-pixel text-[8px] text-ramen-cream">{{ bowlStore.serveResult.macros.protein }}g</div>
-                  </div>
-                  <div>
-                    <div class="font-pixel text-[7px] text-ramen-cream/30">Fat</div>
-                    <div class="font-pixel text-[8px] text-ramen-cream">{{ bowlStore.serveResult.macros.fat }}g</div>
-                  </div>
-                  <div>
-                    <div class="font-pixel text-[7px] text-ramen-cream/30">Carbs</div>
-                    <div class="font-pixel text-[8px] text-ramen-cream">{{ bowlStore.serveResult.macros.carbs }}g</div>
-                  </div>
-                </div>
+              <div v-if="bowlStore.serveResult.macros" class="grid grid-cols-4 gap-1 text-center border-t border-ramen-brown/50 pt-1">
+                <div><div class="font-pixel text-[6px] text-ramen-cream/30">Cal</div><div class="font-pixel text-[7px] text-ramen-cream">{{ bowlStore.serveResult.macros.calories }}</div></div>
+                <div><div class="font-pixel text-[6px] text-ramen-cream/30">Prot</div><div class="font-pixel text-[7px] text-ramen-cream">{{ bowlStore.serveResult.macros.protein }}g</div></div>
+                <div><div class="font-pixel text-[6px] text-ramen-cream/30">Fat</div><div class="font-pixel text-[7px] text-ramen-cream">{{ bowlStore.serveResult.macros.fat }}g</div></div>
+                <div><div class="font-pixel text-[6px] text-ramen-cream/30">Carbs</div><div class="font-pixel text-[7px] text-ramen-cream">{{ bowlStore.serveResult.macros.carbs }}g</div></div>
               </div>
             </div>
 
             <!-- Combos found -->
             <div v-if="groupedPairings.length > 0" class="border-t border-ramen-brown pt-2">
-              <div class="font-pixel text-[8px] text-ramen-cream/40 mb-1">Combos Found:</div>
-              <div v-for="p in groupedPairings" :key="p.combo_name" class="font-pixel text-[8px] text-ramen-orange">
-                {{ p.combo_name }} ({{ p.score_modifier >= 0 ? '+' : '' }}{{ p.score_modifier }})
+              <div class="font-pixel text-[7px] text-ramen-cream/40 mb-1">Combos:</div>
+              <div v-for="p in groupedPairings" :key="p.combo_name" class="mb-1">
+                <div class="font-pixel text-[7px]" :class="p.score_modifier >= 0 ? 'text-ramen-orange' : 'text-ramen-red'">
+                  {{ p.combo_name }} ({{ p.score_modifier >= 0 ? '+' : '' }}{{ p.score_modifier }})
+                </div>
+                <div v-if="p.pairs && p.pairs.length" class="font-pixel text-[6px] text-ramen-cream/30 ml-2">
+                  {{ p.pairs.join(' & ') }}
+                </div>
               </div>
             </div>
 
-            <!-- Rank + XP progression -->
-            <div class="border-t border-ramen-brown pt-2 space-y-2">
+            <!-- Rank + XP -->
+            <div class="border-t border-ramen-brown pt-2 space-y-1">
               <div class="text-center">
-                <div class="font-pixel text-[8px] text-ramen-cream/40">Rank</div>
-                <div class="font-pixel text-xs text-ramen-gold uppercase">{{ bowlStore.serveResult.newRank }}</div>
+                <div class="font-pixel text-[7px] text-ramen-cream/40">Rank</div>
+                <div class="font-pixel text-[10px] text-ramen-gold uppercase">{{ bowlStore.serveResult.newRank }}</div>
               </div>
-              <XPBar
-                :current-x-p="bowlStore.serveResult.newTotalXp"
-                :max-x-p="serveNextRankXp"
-              />
+              <XPBar :current-x-p="bowlStore.serveResult.newTotalXp" :max-x-p="serveNextRankXp" />
             </div>
 
-            <!-- Save as favorite -->
-            <div class="border-t border-ramen-brown pt-2">
-              <div v-if="favSaved" class="font-pixel text-[8px] text-ramen-neon text-center">
-                Saved!
-              </div>
+            <!-- Save + Play Again -->
+            <div class="border-t border-ramen-brown pt-2 space-y-2">
+              <div v-if="favSaved" class="font-pixel text-[8px] text-ramen-neon text-center">Saved!</div>
               <div v-else class="flex gap-2 items-center">
-                <input
-                  v-model="favName"
-                  type="text"
-                  placeholder="Name this bowl..."
-                  class="flex-1 bg-ramen-darker border border-ramen-brown px-2 py-1.5 font-pixel text-[8px] text-ramen-cream placeholder-ramen-cream/30 outline-none focus:border-ramen-gold"
-                />
-                <PixelButton
-                  :label="favSaving ? '...' : 'SAVE'"
-                  variant="secondary"
-                  size="sm"
-                  :disabled="!favName.trim() || favSaving"
-                  @click="saveFavorite"
-                />
+                <input v-model="favName" type="text" placeholder="Name this bowl..."
+                  class="flex-1 bg-ramen-darker border border-ramen-brown px-2 py-1 font-pixel text-[8px] text-ramen-cream placeholder-ramen-cream/30 outline-none focus:border-ramen-gold" />
+                <PixelButton :label="favSaving ? '...' : 'SAVE'" variant="secondary" size="sm" :disabled="!favName.trim() || favSaving" @click="saveFavorite" />
               </div>
-            </div>
-
-            <div class="flex justify-center pt-1">
-              <PixelButton label="PLAY AGAIN" variant="primary" size="md" @click="resetAndPlayAgain" />
+              <div class="flex justify-center">
+                <PixelButton label="PLAY AGAIN" variant="primary" size="sm" @click="resetAndPlayAgain" />
+              </div>
             </div>
           </div>
         </div>
@@ -315,21 +305,60 @@ onMounted(() => {
       <template v-else>
         <!-- Bowl -->
         <div class="flex-shrink-0">
-          <BowlBuilder :selections="bowlStore.selections" :ingredient-map="ingredientStore.ingredientMap" />
+          <BowlBuilder :selections="bowlStore.selections" :ingredient-map="ingredientStore.ingredientMap" :bowl-sprite="selectedBowl?.src" />
         </div>
 
-        <!-- Middle: Step dots + category picker -->
-        <div class="flex flex-col items-center gap-3 w-full max-w-4xl">
-          <!-- Step indicator -->
-          <div class="flex items-center gap-2">
-            <div
-              v-for="(cat, i) in ingredientStore.categories"
-              :key="cat.id"
-              class="w-2 h-2 rounded-full transition-colors cursor-pointer"
-              :class="i < stepIndex ? 'bg-ramen-gold' : i === stepIndex ? 'bg-ramen-orange' : 'bg-ramen-brown'"
-              @click="stepIndex = i"
-            ></div>
+        <!-- Step indicator (always visible) -->
+        <div class="flex items-center gap-2 relative top-[5px]">
+          <!-- Bowl dot -->
+          <div
+            class="w-2 h-2 rounded-full transition-colors cursor-pointer"
+            :class="isBowlStep ? 'bg-ramen-orange' : 'bg-ramen-gold'"
+            @click="stepIndex = -1"
+          ></div>
+          <!-- Category dots -->
+          <div
+            v-for="(cat, i) in ingredientStore.categories"
+            :key="cat.id"
+            class="w-2 h-2 rounded-full transition-colors cursor-pointer"
+            :class="i < stepIndex ? 'bg-ramen-gold' : i === stepIndex ? 'bg-ramen-orange' : 'bg-ramen-brown'"
+            @click="stepIndex = i"
+          ></div>
+        </div>
+
+        <!-- Bowl color selection (step -1) -->
+        <div v-if="isBowlStep" class="flex flex-col items-center gap-3 w-full max-w-4xl">
+          <div class="flex items-center justify-between w-full">
+            <div class="w-16"></div>
+            <h3 class="font-pixel text-xs text-ramen-orange text-center">
+              Bowl
+              <span class="text-ramen-cream/40 text-[8px] block">pick one</span>
+            </h3>
+            <button
+              class="font-pixel text-[8px] text-ramen-cream/40 hover:text-ramen-cream transition-colors w-16 py-3 -my-3 text-right"
+              @click="stepIndex = 0"
+            >
+              SKIP &gt;
+            </button>
           </div>
+          <div class="flex gap-4 justify-center">
+            <button
+              v-for="bowl in bowlOptions"
+              :key="bowl.name"
+              class="flex flex-col items-center justify-center gap-1.5 p-2.5 border-2 transition-all w-[100px] h-[140px] flex-shrink-0"
+              :class="selectedBowl?.name === bowl.name
+                ? 'border-ramen-gold bg-ramen-dark shadow-[0_0_8px_rgba(255,215,0,0.3)]'
+                : 'border-ramen-brown bg-ramen-darker hover:border-ramen-cream/40'"
+              @click="pickBowl(bowl)"
+            >
+              <img :src="bowl.src" class="pixel-render" style="width: 64px; height: auto;" :alt="bowl.name" />
+              <span class="font-pixel text-[8px] text-ramen-cream">{{ bowl.name }}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Category picker -->
+        <div v-else class="flex flex-col items-center gap-3 w-full max-w-4xl">
 
           <!-- Category picker (one at a time) -->
           <div class="w-full">
@@ -342,11 +371,18 @@ onMounted(() => {
               >
                 &lt; BACK
               </button>
-              <div v-else class="w-16"></div>
+              <button
+                v-else
+                class="font-pixel text-[8px] text-ramen-cream/40 hover:text-ramen-cream transition-colors w-16 py-3 -my-3"
+                @click="stepIndex = -1"
+              >
+                &lt; BOWL
+              </button>
 
               <h3 class="font-pixel text-xs text-ramen-orange text-center">
                 {{ stepLabel }}
-                <span v-if="isMultiSelect" class="text-ramen-cream/40 text-[8px] block">pick any, then confirm</span>
+                <span v-if="isLastStep" class="text-ramen-cream/40 text-[8px] block">&nbsp;</span>
+                <span v-else-if="isMultiSelect" class="text-ramen-cream/40 text-[8px] block">pick any</span>
                 <span v-else class="text-ramen-cream/40 text-[8px] block">pick one</span>
               </h3>
 
@@ -386,9 +422,6 @@ onMounted(() => {
             :disabled="!bowlStore.hasMinimumBowl || bowlStore.serving"
             @click="serveBowl"
           />
-          <p v-if="!bowlStore.hasMinimumBowl && bowlStore.totalIngredients > 0" class="font-pixel text-[8px] text-ramen-cream/40">
-            Add at least a broth and noodles
-          </p>
           <p v-if="bowlStore.serveError" class="font-pixel text-[8px] text-ramen-red">
             {{ bowlStore.serveError }}
           </p>

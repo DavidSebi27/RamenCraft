@@ -288,6 +288,14 @@ class IngredientController extends Controller
 
             $db = Database::getConnection();
 
+            // Delete related records first (pairings, bowl_ingredients, favorite_ingredients)
+            $db->prepare("DELETE FROM pairings WHERE ingredient_1_id = :id1 OR ingredient_2_id = :id2")
+               ->execute([':id1' => $id, ':id2' => $id]);
+            $db->prepare("DELETE FROM bowl_ingredients WHERE ingredient_id = :id")
+               ->execute([':id' => $id]);
+            $db->prepare("DELETE FROM favorite_ingredients WHERE ingredient_id = :id")
+               ->execute([':id' => $id]);
+
             $stmt = $db->prepare("DELETE FROM ingredients WHERE id = :id");
             $stmt->bindValue(':id', $id, \PDO::PARAM_INT);
             $stmt->execute();

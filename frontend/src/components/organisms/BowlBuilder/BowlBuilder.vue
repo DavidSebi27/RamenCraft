@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import defaultBowlSprite from '@/assets/Graphics/blue.bowl.png'
 
 /**
  * BowlBuilder — 3/4 perspective bowl visualization
@@ -37,7 +38,13 @@ const props = defineProps({
     type: Object,
     default: () => ({}),
   },
+  bowlSprite: {
+    type: String,
+    default: null,
+  },
 })
+
+const activeBowlSprite = computed(() => props.bowlSprite || defaultBowlSprite)
 
 // Helper to look up an ingredient by ID from the map
 function getIng(id) {
@@ -88,124 +95,102 @@ const otherToppings = computed(() =>
     .filter(t => t && t.name !== 'Menma' && t.name !== 'Negi' && t.name !== 'Nori')
 )
 
-// Protein positions — inside the broth ellipse (top ~17-28%, left within bowl)
-const proteinPositions = [
-  { top: '17%', left: '8%' },
-  { top: '15%', left: '50%', transform: 'translateX(-50%)' },
-  { top: '17%', right: '8%' },
-]
+// Protein positions by name — placed specifically inside the bowl
+// Bowl container is 280px wide, bowl sprite is 260px centered
+// Karaage: left, Tempura: right, Seitan: middle-back, Pork: middle above seitan, Ajitama: right front
+const proteinPositionMap = {
+  'Karaage':             { top: -88, left: 35,  z: 42 },  // left side, nudged right
+  'Cauliflower Tempura': { top: -80, left: 205, z: 42, width: 85 },  // right, near rim
+  'Seitan Katsu':        { top: -100, left: 70, z: 40 },  // middle-left back
+  'Pork Chashu':         { top: -110, left: 65, z: 41 },  // above seitan, left
+  'Ajitama':             { top: -72, left: 200, z: 43, width: 85 },  // right front, near rim
+}
+const defaultProteinPos = { top: -90, left: 80, z: 40 }
 
-// Other topping positions — scattered inside the broth ellipse
-const toppingPositions = [
-  { top: '19%', left: '15%' },
-  { top: '24%', left: '60%' },
-  { top: '17%', left: '65%' },
-  { top: '23%', left: '10%' },
-  { top: '27%', left: '40%' },
-]
+function proteinPos(name) {
+  return proteinPositionMap[name] || defaultProteinPos
+}
+
+// Topping positions by name — placed specifically inside the bowl
+const toppingPositionMap = {
+  'Corn':         { top: -52, left: 40,  z: 42, width: 60 },  // under bean sprouts
+  'Bean Sprouts': { top: -62, left: 40,  z: 41, width: 55 },  // down 10px
+  'Spinach':      { top: -45, left: 120, z: 50, width: 50 },  // bigger, 5px down
+  'Menma':        { top: -53, left: 115, z: 51, width: 50 },  // 5px down
+  'Negi':         { top: -60, left: 120, z: 52, width: 45 },  // 5px down
+  'Narutomaki':   { top: -50, left: 140, z: 53, width: 50 },  // 5px down
+  'Nori':         { top: -90, left: 165, z: 50, width: 55 },  // right side
+}
+const defaultToppingPos = { top: -85, left: 80, z: 50, width: 45 }
+
+function toppingPos(name) {
+  return toppingPositionMap[name] || defaultToppingPos
+}
 </script>
 
 <template>
   <div class="bowl-container">
-    <!-- Bowl side (visible ceramic body below the rim) -->
-    <div class="bowl-side"></div>
+    <!-- All sprites are 64x64 and designed to stack at the same position -->
+    <!-- Layer order: bowl → broth → noodles → oils → proteins → toppings -->
 
-    <!-- Bowl rim (thick elliptical top edge) -->
-    <div class="bowl-rim"></div>
+    <!-- Bowl base -->
+    <img :src="activeBowlSprite" alt="Bowl" class="bowl-layer pixel-render" />
 
-    <!-- Inner bowl surface -->
-    <div class="bowl-inner"></div>
+    <!-- Broth (1px up to align with bowl rim) -->
+    <img v-if="selectedBroth?.spriteIcon" :src="selectedBroth.spriteIcon" :alt="selectedBroth.name" class="bowl-layer pixel-render" style="z-index: 12; margin-top: -4px;" />
 
-    <!-- Broth fill -->
-    <div v-if="selectedBroth" class="broth-fill"
-      :style="{ backgroundColor: selectedBroth.color + 'CC' }"
-    ></div>
+    <!-- Noodles (in-bowl version) -->
+    <img v-if="selectedNoodles?.spriteBowl" :src="selectedNoodles.spriteBowl" :alt="selectedNoodles.name" class="bowl-layer pixel-render" style="z-index: 20; margin-top: -4px;" />
 
-    <!-- Noodles — center of the bowl -->
-    <div v-if="selectedNoodles" class="noodle-layer">
-      <div class="noodle-shape" :style="{ backgroundColor: selectedNoodles.color }">
-        <div class="noodle-lines">
-          <div v-for="i in 6" :key="'line-'+i" class="noodle-strand"
-            :style="{
-              backgroundColor: selectedNoodles.color,
-              filter: `brightness(${0.85 + (i % 3) * 0.1})`,
-              transform: `rotate(${-15 + i * 6}deg)`,
-            }"
-          ></div>
-        </div>
-        <span class="font-pixel text-[6px] text-ramen-dark/50 relative" style="z-index: 1;">
-          {{ selectedNoodles.nameJp }}
-        </span>
-      </div>
-    </div>
+    <!-- Oils (in-soup version, each one 3px higher than the last) -->
+    <template v-for="(oil, index) in selectedOils" :key="'oil-' + oil.id">
+      <img v-if="oil.spriteSoup"
+        :src="oil.spriteSoup" :alt="oil.name"
+        class="bowl-layer pixel-render"
+        :style="{ zIndex: 30 + index, marginTop: -(index * 3) + 'px' }"
+      />
+    </template>
 
-    <!-- Menma — always dead center, on top of noodles -->
-    <div v-if="selectedMenma" class="menma-layer">
-      <div class="menma-piece" :style="{ backgroundColor: selectedMenma.color }">
-        <div class="menma-inner" :style="{ backgroundColor: selectedMenma.color, filter: 'brightness(1.2)' }"></div>
-      </div>
-      <div class="menma-piece menma-piece-2" :style="{ backgroundColor: selectedMenma.color, filter: 'brightness(0.9)' }">
-        <div class="menma-inner" :style="{ backgroundColor: selectedMenma.color }"></div>
-      </div>
-    </div>
-
-    <!-- Negi — right on top of menma, center -->
-    <div v-if="selectedNegi" class="negi-layer">
-      <div v-for="i in 5" :key="'negi-'+i"
-        class="negi-ring"
+    <!-- Proteins — each positioned by name -->
+    <template v-for="(protein, index) in selectedProteins" :key="'protein-' + protein.id">
+      <img v-if="protein.spriteIcon"
+        :src="protein.spriteIcon" :alt="protein.name"
+        class="bowl-item pixel-render"
         :style="{
-          backgroundColor: selectedNegi.color,
-          left: (41 + i * 5) + '%',
-          top: (23 + (i % 2) * 4) + '%',
-          opacity: 0.8 + (i % 3) * 0.1,
+          zIndex: proteinPos(protein.name).z,
+          width: (proteinPos(protein.name).width || 75) + 'px',
+          top: proteinPos(protein.name).top + 'px',
+          left: proteinPos(protein.name).left + 'px',
         }"
-      >
-        <div class="negi-center"></div>
-      </div>
-    </div>
+      />
+      <div v-else
+        class="bowl-item pixel-render"
+        :style="{
+          zIndex: proteinPos(protein.name).z,
+          width: '70px',
+          height: '35px',
+          top: proteinPos(protein.name).top + 'px',
+          left: proteinPos(protein.name).left + 'px',
+          backgroundColor: protein.color,
+          borderRadius: '8px',
+          border: '2px solid rgba(255,255,255,0.15)',
+        }"
+      ></div>
+    </template>
 
-    <!-- Oil drizzle — spread across broth surface, supports all 5 oils -->
-    <div v-for="(oil, index) in selectedOils" :key="'oil-' + oil.id"
-      class="oil-drizzle"
-      :style="{
-        backgroundColor: oil.color,
-        top: [19, 22, 17, 25, 20][index % 5] + '%',
-        left: [15, 35, 55, 25, 48][index % 5] + '%',
-        width: '50px',
-        height: '20px',
-        opacity: 0.35,
-        transform: `rotate(${[-20, 15, -10, 30, -5][index % 5]}deg)`,
-      }"
-    ></div>
-
-    <!-- Proteins — along the back of the bowl -->
-    <div v-for="(protein, index) in selectedProteins"
-      :key="'protein-' + protein.id"
-      class="protein-piece"
-      :style="proteinPositions[index % proteinPositions.length]"
-    >
-      <div class="protein-shape" :style="{ backgroundColor: protein.color }">
-        {{ protein.name.slice(0, 4) }}
-      </div>
-    </div>
-
-    <!-- Nori — sheet leaning against the back wall of the bowl -->
-    <div v-if="selectedNori" class="nori-piece">
-      <div class="nori-sheet" :style="{ backgroundColor: selectedNori.color }">
-        <div class="nori-shine"></div>
-      </div>
-    </div>
-
-    <!-- Other toppings (not menma/negi/nori) -->
-    <div v-for="(topping, index) in otherToppings"
-      :key="'topping-' + topping.id"
-      class="topping-piece"
-      :style="toppingPositions[index % toppingPositions.length]"
-    >
-      <div class="topping-shape" :style="{ backgroundColor: topping.color }">
-        {{ topping.name.slice(0, 2) }}
-      </div>
-    </div>
+    <!-- Toppings — each positioned by name -->
+    <template v-for="toppingId in selections.topping" :key="'topping-' + toppingId">
+      <img v-if="getIng(toppingId)?.spriteIcon"
+        :src="getIng(toppingId).spriteIcon" :alt="getIng(toppingId).name"
+        class="bowl-item pixel-render"
+        :style="{
+          zIndex: toppingPos(getIng(toppingId).name).z,
+          width: toppingPos(getIng(toppingId).name).width + 'px',
+          top: toppingPos(getIng(toppingId).name).top + 'px',
+          left: toppingPos(getIng(toppingId).name).left + 'px',
+        }"
+      />
+    </template>
 
     <!-- Steam animation — rises from the bowl when broth is selected -->
     <div v-if="selectedBroth" style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 300px; height: 60px; z-index: 999; pointer-events: none;">
@@ -219,13 +204,15 @@ const toppingPositions = [
       <div class="steam-particle steam-8"></div>
     </div>
 
-    <!-- Empty state hint -->
-    <div v-if="!selectedBroth && !selectedNoodles"
-      class="empty-hint"
-    >
-      <span class="font-pixel text-[8px] text-ramen-cream/30 text-center px-8">
+    <!-- Empty state hint (always occupies space to prevent layout shift) -->
+    <div class="empty-hint">
+      <span v-if="!selectedBroth" class="font-pixel text-[8px] text-ramen-cream/30 text-center px-8">
         Pick a broth to start building
       </span>
+      <span v-else-if="!selectedNoodles" class="font-pixel text-[8px] text-ramen-cream/30 text-center px-8">
+        Add at least a broth and noodles
+      </span>
+      <span v-else class="font-pixel text-[8px] invisible">placeholder</span>
     </div>
   </div>
 </template>
@@ -233,8 +220,8 @@ const toppingPositions = [
 <style scoped>
 .bowl-container {
   position: relative;
-  width: 380px;
-  height: 330px;
+  width: 280px;
+  height: 180px;
   margin: 0 auto;
   overflow: visible;
 }
@@ -248,7 +235,26 @@ const toppingPositions = [
  *   Side width at top: 280px (matches rim)
  */
 
-/* Bowl side — short ceramic body, width matches rim exactly */
+/* Individual items positioned inside the bowl */
+.bowl-item {
+  position: absolute;
+  height: auto;
+  object-fit: contain;
+}
+
+/* All ingredient layers stack at the same position/size */
+.bowl-layer {
+  position: absolute;
+  top: -130px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 260px;
+  height: 260px;
+  z-index: 10;
+  object-fit: contain;
+}
+
+/* Legacy CSS bowl (kept for reference, hidden by sprite) */
 .bowl-side {
   position: absolute;
   top: 78px;
@@ -419,6 +425,12 @@ const toppingPositions = [
   background: rgba(255,255,255,0.4);
 }
 
+.oil-layer {
+  position: absolute;
+  z-index: 40;
+  pointer-events: none;
+}
+
 .oil-drizzle {
   position: absolute;
   border-radius: 50%;
@@ -493,6 +505,7 @@ const toppingPositions = [
 .empty-hint {
   position: absolute;
   inset: 0;
+  top: 135px;
   display: flex;
   align-items: center;
   justify-content: center;

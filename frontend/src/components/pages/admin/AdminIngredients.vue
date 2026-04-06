@@ -65,7 +65,10 @@ async function loadData() {
 }
 
 async function loadCategories() {
-  try { categories.value = await fetchCategories() } catch (e) { /* */ }
+  try {
+    const result = await fetchCategories()
+    categories.value = Array.isArray(result) ? result : (result.data || [])
+  } catch (e) { /* */ }
 }
 
 onMounted(() => { loadData(); loadCategories() })
