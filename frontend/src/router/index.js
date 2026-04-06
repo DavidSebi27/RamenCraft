@@ -14,6 +14,7 @@ import AdminIngredients from '@/components/pages/admin/AdminIngredients.vue'
 import AdminPairings from '@/components/pages/admin/AdminPairings.vue'
 import AdminAchievements from '@/components/pages/admin/AdminAchievements.vue'
 import AdminUsers from '@/components/pages/admin/AdminUsers.vue'
+import CreditsPage from '@/components/pages/CreditsPage.vue'
 
 // Define all application routes
 // meta.requiresAuth: user must be logged in
@@ -24,6 +25,7 @@ const routes = [
   { path: '/play', component: PlayPage, meta: { requiresAuth: true } },
   { path: '/leaderboard', component: LeaderboardPage },
   { path: '/profile', component: ProfilePage, meta: { requiresAuth: true } },
+  { path: '/credits', component: CreditsPage },
   { path: '/login', component: LoginPage, meta: { guestOnly: true } },
   { path: '/register', component: RegisterPage, meta: { guestOnly: true } },
   // Admin routes — require admin role

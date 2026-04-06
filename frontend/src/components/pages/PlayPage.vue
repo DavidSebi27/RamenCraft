@@ -14,6 +14,7 @@ import PixelButton from '@/components/atoms/PixelButton/PixelButton.vue'
 import XPBar from '@/components/atoms/XPBar/XPBar.vue'
 import AchievementToast from '@/components/molecules/AchievementToast/AchievementToast.vue'
 import PixelLoader from '@/components/atoms/PixelLoader/PixelLoader.vue'
+import { playSound } from '@/utils/sounds'
 import { useIngredientStore } from '@/stores/ingredients'
 import { useBowlStore } from '@/stores/bowl'
 import { useFavoritesStore } from '@/stores/favorites'
@@ -134,6 +135,7 @@ function resetAndPlayAgain() {
 }
 
 function pickBowl(bowl) {
+  playSound('select', 0.2)
   selectedBowl.value = selectedBowl.value?.name === bowl.name ? null : bowl
 }
 
@@ -271,7 +273,7 @@ onMounted(() => {
                   {{ p.combo_name }} ({{ p.score_modifier >= 0 ? '+' : '' }}{{ p.score_modifier }})
                 </div>
                 <div v-if="p.pairs && p.pairs.length" class="font-pixel text-[6px] text-ramen-cream/30 ml-2">
-                  {{ p.pairs.join(' & ') }}
+                  {{ [...new Set(p.pairs.flatMap(pr => pr.split(' + ')))].join(' + ') }}
                 </div>
               </div>
             </div>

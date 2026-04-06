@@ -54,6 +54,9 @@ const ranks = [
         <router-link to="/leaderboard" class="font-pixel text-[8px] text-ramen-cream/50 hover:text-ramen-neon transition-colors">
           Leaderboard
         </router-link>
+        <router-link to="/credits" class="font-pixel text-[8px] text-ramen-cream/50 hover:text-ramen-neon transition-colors">
+          Credits
+        </router-link>
         <router-link to="/login" class="font-pixel text-[8px] text-ramen-cream/50 hover:text-ramen-neon transition-colors">
           Login
         </router-link>

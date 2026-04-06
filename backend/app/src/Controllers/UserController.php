@@ -200,6 +200,13 @@ class UserController extends Controller
 
             $db = Database::getConnection();
 
+            // Clean up related data first
+            $db->prepare("DELETE FROM bowl_ingredients WHERE bowl_id IN (SELECT id FROM served_bowls WHERE user_id = :uid)")->execute([':uid' => $id]);
+            $db->prepare("DELETE FROM served_bowls WHERE user_id = :uid")->execute([':uid' => $id]);
+            $db->prepare("DELETE FROM user_achievements WHERE user_id = :uid")->execute([':uid' => $id]);
+            $db->prepare("DELETE FROM favorite_ingredients WHERE favorite_id IN (SELECT id FROM favorites WHERE user_id = :uid)")->execute([':uid' => $id]);
+            $db->prepare("DELETE FROM favorites WHERE user_id = :uid")->execute([':uid' => $id]);
+
             $stmt = $db->prepare("DELETE FROM users WHERE id = :id");
             $stmt->bindValue(':id', $id, \PDO::PARAM_INT);
             $stmt->execute();

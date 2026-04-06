@@ -1,13 +1,42 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import bgMusic from '@/assets/18 High Quality 8-bit Musics/17. The Quiet Spy.mp3'
 
 const router = useRouter()
 const auth = useAuthStore()
 
 // Controls whether the mobile hamburger menu is open or closed
 const mobileMenuOpen = ref(false)
+
+// Music player — singleton audio instance (survives component re-mounts)
+if (!window.__ramenMusic) {
+  window.__ramenMusic = new Audio(bgMusic)
+  window.__ramenMusic.loop = true
+  window.__ramenMusic.volume = 0.15
+  window.__ramenMusicPlaying = true
+  // Start on first user interaction (browser autoplay policy)
+  const startMusic = () => {
+    if (window.__ramenMusicPlaying) {
+      window.__ramenMusic.play().catch(() => {})
+    }
+    document.removeEventListener('click', startMusic)
+  }
+  document.addEventListener('click', startMusic)
+}
+const audio = window.__ramenMusic
+const musicPlaying = ref(window.__ramenMusicPlaying)
+
+function toggleMusic() {
+  if (musicPlaying.value) {
+    audio.pause()
+  } else {
+    audio.play()
+  }
+  musicPlaying.value = !musicPlaying.value
+  window.__ramenMusicPlaying = musicPlaying.value
+}
 
 function handleLogout() {
   auth.logout()
@@ -73,6 +102,24 @@ const navLinks = [
           >
             Login
           </router-link>
+
+          <!-- Music toggle -->
+          <button
+            @click="toggleMusic"
+            class="ml-2 text-ramen-cream/60 hover:text-ramen-gold transition-colors"
+            :title="musicPlaying ? 'Mute music' : 'Play music'"
+          >
+            <svg v-if="musicPlaying" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" />
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+            </svg>
+            <svg v-else xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" />
+              <line x1="23" y1="9" x2="17" y2="15" />
+              <line x1="17" y1="9" x2="23" y2="15" />
+            </svg>
+          </button>
         </div>
 
         <!-- Mobile hamburger button (hidden on desktop) -->
