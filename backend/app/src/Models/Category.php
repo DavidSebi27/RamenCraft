@@ -3,26 +3,16 @@
 namespace App\Models;
 
 /**
- * Category model — represents an ingredient category (broth, noodles, oil, etc.)
+ * Category model — represents an ingredient category.
  *
- * Properties map directly to the `categories` database table columns.
- * The constructor accepts an associative array (like a database row)
- * and maps the values to the object properties.
+ * Properties use snake_case to match DB columns for PDO::FETCH_CLASS.
  */
 class Category
 {
-    public ?int $id;
-    public string $name;
-    public string $displayName;
-    public int $sortOrder;
-
-    public function __construct(array $data = [])
-    {
-        $this->id = $data['id'] ?? null;
-        $this->name = $data['name'] ?? '';
-        $this->displayName = $data['display_name'] ?? '';
-        $this->sortOrder = $data['sort_order'] ?? 0;
-    }
+    public ?int $id = null;
+    public string $name = '';
+    public string $display_name = '';
+    public int $sort_order = 0;
 
     /**
      * Convert to camelCase array for JSON response.
@@ -30,10 +20,10 @@ class Category
     public function toArray(): array
     {
         return [
-            'id' => $this->id,
+            'id' => (int) $this->id,
             'name' => $this->name,
-            'displayName' => $this->displayName,
-            'sortOrder' => $this->sortOrder,
+            'displayName' => $this->display_name,
+            'sortOrder' => (int) $this->sort_order,
         ];
     }
 }

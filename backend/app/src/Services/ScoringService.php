@@ -3,36 +3,36 @@
 namespace App\Services;
 
 use App\Config\Database;
+use App\Models\Ingredient;
+use App\Repositories\IngredientRepository;
 
 /**
  * ScoringService — calculates tastiness, nutrition, and XP server-side.
  *
- * This ensures scores cannot be spoofed by the client.
- * The frontend still calculates scores for instant UI feedback,
- * but the server recalculates everything from ingredient_ids alone.
+ * Works with typed Ingredient objects from the repository, not raw arrays.
+ * Client-provided scores are ignored — everything is recalculated here.
  */
 class ScoringService
 {
+    private IngredientRepository $ingredientRepo;
+
+    public function __construct()
+    {
+        $this->ingredientRepo = new IngredientRepository();
+    }
+
     /**
      * Calculate all scores for a bowl based on ingredient IDs only.
-     *
-     * @param array $ingredientIds  Array of ingredient IDs in the bowl
-     * @return array  [tastiness, nutrition, totalScore, xpEarned, pairingsFound]
      */
     public function calculate(array $ingredientIds): array
     {
-        $db = Database::getConnection();
+        // Fetch typed Ingredient objects from the repository
+        $ingredients = $this->ingredientRepo->findByIds($ingredientIds);
 
-        // Fetch ingredient data
-        $ingredients = $this->fetchIngredients($db, $ingredientIds);
+        // Fetch matching pairings (still raw arrays — pairings don't have a model yet)
+        $pairings = $this->findMatchingPairings(Database::getConnection(), $ingredientIds);
 
-        // Fetch matching pairings
-        $pairings = $this->findMatchingPairings($db, $ingredientIds);
-
-        // Calculate tastiness
         $tastiness = $this->calculateTastiness($ingredients, $pairings);
-
-        // Calculate nutrition
         $nutrition = $this->calculateNutrition($ingredients);
 
         $totalScore = $tastiness + $nutrition;
@@ -48,40 +48,24 @@ class ScoringService
     }
 
     /**
-     * Fetch ingredient rows for the given IDs.
-     */
-    private function fetchIngredients(\PDO $db, array $ids): array
-    {
-        if (empty($ids)) return [];
-
-        $placeholders = implode(',', array_fill(0, count($ids), '?'));
-        $stmt = $db->prepare(
-            "SELECT i.*, c.name AS category_name
-             FROM ingredients i
-             JOIN categories c ON i.category_id = c.id
-             WHERE i.id IN ({$placeholders})"
-        );
-        $stmt->execute(array_map('intval', $ids));
-        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
-    }
-
-    /**
-     * Calculate tastiness score.
+     * Calculate tastiness score from typed Ingredient objects.
      *
-     * Base: 10 points per ingredient.
-     * Variety: +5 per category used.
-     * Pairings: sum of all matching pairing modifiers.
+     * @param Ingredient[] $ingredients
+     * @param array $pairings  Grouped pairing arrays from findMatchingPairings()
      */
     private function calculateTastiness(array $ingredients, array $pairings): int
     {
-        // Base score: 10 per ingredient
+        // Base: 10 per ingredient
         $score = count($ingredients) * 10;
 
         // Variety bonus: +5 per unique category
-        $categories = array_unique(array_column($ingredients, 'category_name'));
+        $categories = [];
+        foreach ($ingredients as $ing) {
+            if ($ing->category_name) $categories[$ing->category_name] = true;
+        }
         $score += count($categories) * 5;
 
-        // Pairing bonuses (already grouped)
+        // Pairing bonuses
         foreach ($pairings as $pairing) {
             $score += (int) $pairing['score_modifier'];
         }
@@ -90,10 +74,9 @@ class ScoringService
     }
 
     /**
-     * Calculate nutrition score based on macronutrient balance.
+     * Calculate nutrition score from typed Ingredient objects.
      *
-     * Protein adequacy (0-30), calorie balance (0-30),
-     * veggie/topping bonus (0-20), completeness (0-20).
+     * @param Ingredient[] $ingredients
      */
     private function calculateNutrition(array $ingredients): int
     {
@@ -104,14 +87,14 @@ class ScoringService
         $categoriesUsed = [];
 
         foreach ($ingredients as $ing) {
-            $totalCalories += (float) ($ing['calories_per_serving'] ?? 0);
-            $totalProtein += (float) ($ing['protein_g'] ?? 0);
+            $totalCalories += $ing->calories_per_serving ?? 0;
+            $totalProtein += $ing->protein_g ?? 0;
 
-            $cat = $ing['category_name'] ?? '';
-            $categoriesUsed[$cat] = true;
-
-            if ($cat === 'topping') {
-                $toppingCount++;
+            if ($ing->category_name) {
+                $categoriesUsed[$ing->category_name] = true;
+                if ($ing->category_name === 'topping') {
+                    $toppingCount++;
+                }
             }
         }
 

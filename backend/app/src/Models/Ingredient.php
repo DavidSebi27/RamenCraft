@@ -3,45 +3,30 @@
 namespace App\Models;
 
 /**
- * Ingredient model — represents a ramen ingredient (e.g., Tonkotsu broth, Thin noodles)
+ * Ingredient model — represents a ramen ingredient.
  *
- * Properties map to the `ingredients` database table columns.
- * Column names use snake_case in the database, but we convert to camelCase
- * in PHP for consistency with PHP conventions.
+ * Properties use snake_case to match DB columns directly,
+ * so PDO::FETCH_CLASS can hydrate them without manual mapping.
+ * toArray() converts to camelCase for the JSON API.
  */
 class Ingredient
 {
-    public ?int $id;
-    public int $categoryId;
-    public string $name;
-    public ?string $nameJp;
-    public ?string $description;
-    public ?string $spriteIcon;
-    public ?string $spriteBowl;
-    public ?float $caloriesPerServing;
-    public ?float $proteinG;
-    public ?float $fatG;
-    public ?float $carbsG;
-    public bool $isAvailable;
+    public ?int $id = null;
+    public int $category_id = 0;
+    public string $name = '';
+    public ?string $name_jp = null;
+    public ?string $description = null;
+    public ?string $sprite_icon = null;
+    public ?string $sprite_bowl = null;
+    public ?float $calories_per_serving = null;
+    public ?float $protein_g = null;
+    public ?float $fat_g = null;
+    public ?float $carbs_g = null;
+    public int $is_available = 1;
+    public ?string $created_at = null;
 
-    public ?string $categoryName;
-
-    public function __construct(array $data = [])
-    {
-        $this->id = $data['id'] ?? null;
-        $this->categoryId = $data['category_id'] ?? 0;
-        $this->name = $data['name'] ?? '';
-        $this->nameJp = $data['name_jp'] ?? null;
-        $this->description = $data['description'] ?? null;
-        $this->spriteIcon = $data['sprite_icon'] ?? null;
-        $this->spriteBowl = $data['sprite_bowl'] ?? null;
-        $this->caloriesPerServing = isset($data['calories_per_serving']) ? (float) $data['calories_per_serving'] : null;
-        $this->proteinG = isset($data['protein_g']) ? (float) $data['protein_g'] : null;
-        $this->fatG = isset($data['fat_g']) ? (float) $data['fat_g'] : null;
-        $this->carbsG = isset($data['carbs_g']) ? (float) $data['carbs_g'] : null;
-        $this->isAvailable = (bool) ($data['is_available'] ?? true);
-        $this->categoryName = $data['category_name'] ?? null;
-    }
+    // Joined field — not always present
+    public ?string $category_name = null;
 
     /**
      * Convert to camelCase array for JSON response.
@@ -49,19 +34,19 @@ class Ingredient
     public function toArray(): array
     {
         return [
-            'id' => $this->id,
-            'categoryId' => $this->categoryId,
-            'categoryName' => $this->categoryName,
+            'id' => (int) $this->id,
+            'categoryId' => (int) $this->category_id,
+            'categoryName' => $this->category_name,
             'name' => $this->name,
-            'nameJp' => $this->nameJp,
+            'nameJp' => $this->name_jp,
             'description' => $this->description,
-            'spriteIcon' => $this->spriteIcon,
-            'spriteBowl' => $this->spriteBowl,
-            'caloriesPerServing' => $this->caloriesPerServing,
-            'proteinG' => $this->proteinG,
-            'fatG' => $this->fatG,
-            'carbsG' => $this->carbsG,
-            'isAvailable' => $this->isAvailable,
+            'spriteIcon' => $this->sprite_icon,
+            'spriteBowl' => $this->sprite_bowl,
+            'caloriesPerServing' => $this->calories_per_serving !== null ? (float) $this->calories_per_serving : null,
+            'proteinG' => $this->protein_g !== null ? (float) $this->protein_g : null,
+            'fatG' => $this->fat_g !== null ? (float) $this->fat_g : null,
+            'carbsG' => $this->carbs_g !== null ? (float) $this->carbs_g : null,
+            'isAvailable' => (bool) $this->is_available,
         ];
     }
 }
