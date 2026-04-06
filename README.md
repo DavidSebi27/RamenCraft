@@ -204,17 +204,7 @@ RamenCraft/
 
 ## Environment Variables
 
-The `.env` file at the project root contains:
-
-```
-DB_HOST=mysql
-DB_NAME=ramencraft
-DB_USER=ramencraft
-DB_PASS=ramencraft
-MYSQL_ROOT_PASSWORD=secret123
-JWT_SECRET=de34f1dc113367121f557553a0f9cd1e93f1d4f921de80765695d37be4d14c99
-NUTRITION_API_KEY=CROChPJr3ObACwvcdabTerHA4dvLmstFygc6KUz6
-```
+The `.env` file at the project root contains all required configuration (database credentials, JWT secret, API keys). It is included in the submission zip but excluded from git.
 
 ---
 
