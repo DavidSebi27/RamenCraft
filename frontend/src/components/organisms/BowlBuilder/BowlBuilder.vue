@@ -193,7 +193,7 @@ function toppingPos(name) {
     </template>
 
     <!-- Steam animation — rises from the bowl when broth is selected -->
-    <div v-if="selectedBroth" style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 300px; height: 60px; z-index: 999; pointer-events: none;">
+    <div v-if="selectedBroth" style="position: absolute; top: -130px; left: 50%; transform: translateX(-50%); width: 200px; height: 60px; z-index: 999; pointer-events: none;">
       <div class="steam-particle steam-1"></div>
       <div class="steam-particle steam-2"></div>
       <div class="steam-particle steam-3"></div>
@@ -532,6 +532,7 @@ function toppingPos(name) {
   background: white;
   border-radius: 0;
   image-rendering: pixelated;
+  opacity: 0;
   animation: steam-rise ease-out infinite;
 }
 
