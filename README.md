@@ -222,6 +222,19 @@ A complete Postman test collection is included at `backend/RamenCraft_API.postma
 
 ---
 
+## AI Disclosure Statement
+
+This project was developed with the assistance of Claude (Anthropic), an AI language model, used as a pair programming tool throughout development. Specifically, AI was used for:
+
+- **Code scaffolding:** Generating initial boilerplate for PHP controllers, Vue components, and Pinia stores based on my specifications and architecture decisions
+- **Debugging:** Identifying issues with database queries, Vue reactivity, Docker configuration, and API response formats
+- **CSS/styling assistance:** Helping with Tailwind utility classes, pixel art cursor SVGs, and responsive layout adjustments
+- **Postman collection:** Hepling with the API test suite, optimizing tests, and expanding edge case coverage
+
+All game design decisions, architecture choices, database schema design, ingredient/pairing/achievement data, and gameplay mechanics were conceived and directed by me. Pixel art assets were created by Panna Ehleiter. I reviewed, tested, and understand all code in the application, and made iterative adjustments throughout development based on my own testing and judgment.
+
+---
+
 ## Credits
 
 - **Game Design & Development:** David Sebestyen
