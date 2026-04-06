@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Config\Database;
 use App\Framework\Controller;
+use App\Models\Ingredient;
 
 /**
  * IngredientController — handles API requests for ingredients
@@ -312,24 +313,10 @@ class IngredientController extends Controller
     }
 
     /**
-     * Convert a database row (snake_case) to a frontend-friendly format (camelCase)
+     * Convert a database row to a camelCase array via the Ingredient model.
      */
     private function formatIngredient(array $row): array
     {
-        return [
-            'id' => (int) $row['id'],
-            'categoryId' => (int) $row['category_id'],
-            'categoryName' => $row['category_name'] ?? null,
-            'name' => $row['name'],
-            'nameJp' => $row['name_jp'],
-            'description' => $row['description'],
-            'spriteIcon' => $row['sprite_icon'],
-            'spriteBowl' => $row['sprite_bowl'],
-            'caloriesPerServing' => $row['calories_per_serving'] ? (float) $row['calories_per_serving'] : null,
-            'proteinG' => $row['protein_g'] ? (float) $row['protein_g'] : null,
-            'fatG' => $row['fat_g'] ? (float) $row['fat_g'] : null,
-            'carbsG' => $row['carbs_g'] ? (float) $row['carbs_g'] : null,
-            'isAvailable' => (bool) $row['is_available'],
-        ];
+        return (new Ingredient($row))->toArray();
     }
 }

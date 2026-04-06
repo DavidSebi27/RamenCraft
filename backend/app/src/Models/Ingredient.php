@@ -24,6 +24,8 @@ class Ingredient
     public ?float $carbsG;
     public bool $isAvailable;
 
+    public ?string $categoryName;
+
     public function __construct(array $data = [])
     {
         $this->id = $data['id'] ?? null;
@@ -38,5 +40,28 @@ class Ingredient
         $this->fatG = isset($data['fat_g']) ? (float) $data['fat_g'] : null;
         $this->carbsG = isset($data['carbs_g']) ? (float) $data['carbs_g'] : null;
         $this->isAvailable = (bool) ($data['is_available'] ?? true);
+        $this->categoryName = $data['category_name'] ?? null;
+    }
+
+    /**
+     * Convert to camelCase array for JSON response.
+     */
+    public function toArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'categoryId' => $this->categoryId,
+            'categoryName' => $this->categoryName,
+            'name' => $this->name,
+            'nameJp' => $this->nameJp,
+            'description' => $this->description,
+            'spriteIcon' => $this->spriteIcon,
+            'spriteBowl' => $this->spriteBowl,
+            'caloriesPerServing' => $this->caloriesPerServing,
+            'proteinG' => $this->proteinG,
+            'fatG' => $this->fatG,
+            'carbsG' => $this->carbsG,
+            'isAvailable' => $this->isAvailable,
+        ];
     }
 }

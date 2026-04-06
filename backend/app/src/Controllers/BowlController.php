@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Config\Database;
 use App\Framework\Controller;
+use App\Services\ScoringService;
 
 /**
  * BowlController — handles serving bowls and viewing bowl history
@@ -17,106 +18,109 @@ class BowlController extends Controller
     /**
      * POST /api/bowls/serve
      *
-     * Expects JSON: {
-     *   "ingredient_ids": [1, 9, 12, 17, 23],
-     *   "tastiness_score": 85,
-     *   "nutrition_score": 70,
-     *   "total_score": 155,
-     *   "xp_earned": 232
-     * }
+     * Expects JSON: { "ingredient_ids": [1, 9, 12, 17, 23] }
      *
-     * Saves the bowl + ingredients, updates user XP + rank, returns result.
+     * Scores are calculated entirely server-side by ScoringService.
+     * Client-provided scores are ignored to prevent cheating.
      */
     public function serve(): void
     {
         $payload = $this->authenticate();
-        $userId = $payload->sub;
+        $userId = (int) $payload->sub;
 
         try {
             $input = json_decode(file_get_contents('php://input'), true);
+            $ingredientIds = $this->validateServeInput($input);
 
-            // Validate required fields
-            if (empty($input['ingredient_ids']) || !is_array($input['ingredient_ids'])) {
-                $this->sendErrorResponse('ingredient_ids is required and must be an array', 400);
-                return;
-            }
+            // Calculate scores server-side (client scores are ignored)
+            $scoring = new ScoringService();
+            $scores = $scoring->calculate($ingredientIds);
 
-            $ingredientIds = $input['ingredient_ids'];
-            $tastinessScore = (int) ($input['tastiness_score'] ?? 0);
-            $nutritionScore = (int) ($input['nutrition_score'] ?? 0);
-            $totalScore = (int) ($input['total_score'] ?? 0);
-            $xpEarned = (int) ($input['xp_earned'] ?? 0);
-
-            // Cap XP per bowl to prevent cheating
-            $xpEarned = min($xpEarned, 500);
-
+            // Persist bowl, update XP/rank
             $db = Database::getConnection();
             $db->beginTransaction();
 
-            // 1. Insert the served bowl
-            $stmt = $db->prepare(
-                'INSERT INTO served_bowls (user_id, tastiness_score, nutrition_score, total_score, xp_earned)
-                 VALUES (:user_id, :tastiness, :nutrition, :total, :xp)'
-            );
-            $stmt->execute([
-                ':user_id'   => $userId,
-                ':tastiness' => $tastinessScore,
-                ':nutrition' => $nutritionScore,
-                ':total'     => $totalScore,
-                ':xp'        => $xpEarned,
-            ]);
-            $bowlId = $db->lastInsertId();
-
-            // 2. Insert bowl ingredients
-            $ingredientStmt = $db->prepare(
-                'INSERT INTO bowl_ingredients (bowl_id, ingredient_id) VALUES (:bowl_id, :ingredient_id)'
-            );
-            foreach ($ingredientIds as $ingredientId) {
-                $ingredientStmt->execute([
-                    ':bowl_id'       => $bowlId,
-                    ':ingredient_id' => (int) $ingredientId,
-                ]);
-            }
-
-            // 3. Update user XP
-            $stmt = $db->prepare(
-                'UPDATE users SET total_xp = total_xp + :xp WHERE id = :id'
-            );
-            $stmt->execute([':xp' => $xpEarned, ':id' => $userId]);
-
-            // 4. Get updated user and calculate new rank
-            $stmt = $db->prepare('SELECT total_xp FROM users WHERE id = :id');
-            $stmt->execute([':id' => $userId]);
-            $newTotalXp = (int) $stmt->fetchColumn();
-
-            $newRank = $this->calculateRank($newTotalXp);
-
-            // 5. Update rank in database
-            $stmt = $db->prepare('UPDATE users SET current_rank = :rank WHERE id = :id');
-            $stmt->execute([':rank' => $newRank, ':id' => $userId]);
-
-            // 6. Find matching pairings for feedback
-            $pairingsFound = $this->findMatchingPairings($db, $ingredientIds);
+            $bowlId = $this->insertBowl($db, $userId, $ingredientIds, $scores);
+            $xpResult = $this->updateUserXp($db, $userId, $scores['xp_earned']);
 
             $db->commit();
 
             $this->sendSuccessResponse([
-                'bowl_id'        => (int) $bowlId,
-                'tastiness_score' => $tastinessScore,
-                'nutrition_score' => $nutritionScore,
-                'total_score'    => $totalScore,
-                'xp_earned'      => $xpEarned,
-                'total_xp'       => $newTotalXp,
-                'current_rank'   => $newRank,
-                'pairings_found' => $pairingsFound,
+                'bowl_id'         => $bowlId,
+                'tastiness_score' => $scores['tastiness_score'],
+                'nutrition_score' => $scores['nutrition_score'],
+                'total_score'     => $scores['total_score'],
+                'xp_earned'       => $scores['xp_earned'],
+                'total_xp'        => $xpResult['total_xp'],
+                'current_rank'    => $xpResult['current_rank'],
+                'pairings_found'  => $scores['pairings_found'],
             ], 201);
 
         } catch (\Exception $e) {
-            if ($db->inTransaction()) {
+            if (isset($db) && $db->inTransaction()) {
                 $db->rollBack();
             }
             $this->sendErrorResponse('Failed to serve bowl: ' . $e->getMessage(), 500);
         }
+    }
+
+    /**
+     * Validate serve input — only ingredient_ids is required.
+     */
+    private function validateServeInput(?array $input): array
+    {
+        if (empty($input['ingredient_ids']) || !is_array($input['ingredient_ids'])) {
+            throw new \InvalidArgumentException('ingredient_ids is required and must be an array');
+        }
+        return array_map('intval', $input['ingredient_ids']);
+    }
+
+    /**
+     * Insert bowl + ingredients into the database.
+     */
+    private function insertBowl(\PDO $db, int $userId, array $ingredientIds, array $scores): int
+    {
+        $stmt = $db->prepare(
+            'INSERT INTO served_bowls (user_id, tastiness_score, nutrition_score, total_score, xp_earned)
+             VALUES (:user_id, :tastiness, :nutrition, :total, :xp)'
+        );
+        $stmt->execute([
+            ':user_id'   => $userId,
+            ':tastiness' => $scores['tastiness_score'],
+            ':nutrition' => $scores['nutrition_score'],
+            ':total'     => $scores['total_score'],
+            ':xp'        => $scores['xp_earned'],
+        ]);
+        $bowlId = (int) $db->lastInsertId();
+
+        $ingredientStmt = $db->prepare(
+            'INSERT INTO bowl_ingredients (bowl_id, ingredient_id) VALUES (:bowl_id, :ingredient_id)'
+        );
+        foreach ($ingredientIds as $id) {
+            $ingredientStmt->execute([':bowl_id' => $bowlId, ':ingredient_id' => $id]);
+        }
+
+        return $bowlId;
+    }
+
+    /**
+     * Update user XP and recalculate rank.
+     */
+    private function updateUserXp(\PDO $db, int $userId, int $xpEarned): array
+    {
+        $db->prepare('UPDATE users SET total_xp = total_xp + :xp WHERE id = :id')
+           ->execute([':xp' => $xpEarned, ':id' => $userId]);
+
+        $stmt = $db->prepare('SELECT total_xp FROM users WHERE id = :id');
+        $stmt->execute([':id' => $userId]);
+        $newTotalXp = (int) $stmt->fetchColumn();
+
+        $newRank = $this->calculateRank($newTotalXp);
+
+        $db->prepare('UPDATE users SET current_rank = :rank WHERE id = :id')
+           ->execute([':rank' => $newRank, ':id' => $userId]);
+
+        return ['total_xp' => $newTotalXp, 'current_rank' => $newRank];
     }
 
     /**
@@ -191,48 +195,4 @@ class BowlController extends Controller
         return 'minarai';
     }
 
-    /**
-     * Find pairings that match the given ingredient IDs.
-     */
-    private function findMatchingPairings(\PDO $db, array $ingredientIds): array
-    {
-        if (count($ingredientIds) < 2) return [];
-
-        $placeholders = implode(',', array_fill(0, count($ingredientIds), '?'));
-
-        $stmt = $db->prepare(
-            "SELECT p.combo_name, p.score_modifier, p.description,
-                    i1.name AS ingredient_1_name, i2.name AS ingredient_2_name
-             FROM pairings p
-             JOIN ingredients i1 ON p.ingredient_1_id = i1.id
-             JOIN ingredients i2 ON p.ingredient_2_id = i2.id
-             WHERE p.ingredient_1_id IN ({$placeholders})
-               AND p.ingredient_2_id IN ({$placeholders})"
-        );
-
-        $params = array_merge(
-            array_map('intval', $ingredientIds),
-            array_map('intval', $ingredientIds)
-        );
-        $stmt->execute($params);
-
-        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
-
-        // Group by combo_name so duplicates are merged
-        $grouped = [];
-        foreach ($rows as $row) {
-            $name = $row['combo_name'];
-            if (!isset($grouped[$name])) {
-                $grouped[$name] = [
-                    'combo_name' => $name,
-                    'score_modifier' => 0,
-                    'pairs' => [],
-                ];
-            }
-            $grouped[$name]['score_modifier'] += (int) $row['score_modifier'];
-            $grouped[$name]['pairs'][] = $row['ingredient_1_name'] . ' + ' . $row['ingredient_2_name'];
-        }
-
-        return array_values($grouped);
-    }
 }

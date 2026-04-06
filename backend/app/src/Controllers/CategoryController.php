@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Config\Database;
 use App\Framework\Controller;
+use App\Models\Category;
 
 /**
  * CategoryController — handles API requests for ingredient categories
@@ -53,12 +54,7 @@ class CategoryController extends Controller
             $rows = $stmt->fetchAll();
 
             $categories = array_map(function ($row) {
-                return [
-                    'id' => (int) $row['id'],
-                    'name' => $row['name'],
-                    'displayName' => $row['display_name'],
-                    'sortOrder' => (int) $row['sort_order'],
-                ];
+                return (new Category($row))->toArray();
             }, $rows);
 
             $this->sendSuccessResponse([

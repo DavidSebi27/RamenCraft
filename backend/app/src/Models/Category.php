@@ -23,4 +23,17 @@ class Category
         $this->displayName = $data['display_name'] ?? '';
         $this->sortOrder = $data['sort_order'] ?? 0;
     }
+
+    /**
+     * Convert to camelCase array for JSON response.
+     */
+    public function toArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'displayName' => $this->displayName,
+            'sortOrder' => $this->sortOrder,
+        ];
+    }
 }

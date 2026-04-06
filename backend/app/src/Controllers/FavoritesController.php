@@ -224,6 +224,72 @@ class FavoritesController extends Controller
     }
 
     /**
+     * PUT /api/favorites/{id}
+     *
+     * Update a saved bowl's name and/or ingredients.
+     * Expects JSON: { "name": "New Name", "ingredient_ids": [1, 9, 13] }
+     */
+    public function update(array $vars = []): void
+    {
+        $payload = $this->authenticate();
+        $userId = (int) $payload->sub;
+
+        try {
+            $id = (int) ($vars['id'] ?? 0);
+            if ($id <= 0) {
+                $this->sendErrorResponse('Invalid favorite ID', 400);
+                return;
+            }
+
+            $db = Database::getConnection();
+
+            // Verify ownership
+            $check = $db->prepare("SELECT id FROM favorites WHERE id = :id AND user_id = :uid");
+            $check->execute([':id' => $id, ':uid' => $userId]);
+            if (!$check->fetch()) {
+                $this->sendErrorResponse('Favorite not found', 404);
+                return;
+            }
+
+            $input = json_decode(file_get_contents('php://input'), true);
+            if (!$input) {
+                $this->sendErrorResponse('Request body is required', 400);
+                return;
+            }
+
+            $db->beginTransaction();
+
+            // Update name if provided
+            if (!empty($input['name'])) {
+                $db->prepare("UPDATE favorites SET name = :name WHERE id = :id")
+                   ->execute([':name' => trim($input['name']), ':id' => $id]);
+            }
+
+            // Replace ingredients if provided
+            if (!empty($input['ingredient_ids']) && is_array($input['ingredient_ids'])) {
+                $db->prepare("DELETE FROM favorite_ingredients WHERE favorite_id = :fid")
+                   ->execute([':fid' => $id]);
+
+                $ingStmt = $db->prepare(
+                    "INSERT INTO favorite_ingredients (favorite_id, ingredient_id) VALUES (:fid, :iid)"
+                );
+                foreach ($input['ingredient_ids'] as $ingredientId) {
+                    $ingStmt->execute([':fid' => $id, ':iid' => (int) $ingredientId]);
+                }
+            }
+
+            $db->commit();
+
+            $this->sendSuccessResponse(['id' => $id, 'message' => 'Favorite updated']);
+        } catch (\Exception $e) {
+            if (isset($db) && $db->inTransaction()) {
+                $db->rollBack();
+            }
+            $this->sendErrorResponse('Failed to update favorite: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
      * DELETE /api/favorites/{id}
      */
     public function delete(array $vars = []): void
