@@ -38,9 +38,10 @@ class BowlController extends Controller
             $this->sendSuccessResponse($result, 201);
 
         } catch (\InvalidArgumentException $e) {
-            $this->sendErrorResponse($e->getMessage(), 400);
+            $this->sendErrorResponse('Invalid input: ingredient_ids is required', 400);
         } catch (\Exception $e) {
-            $this->sendErrorResponse('Failed to serve bowl: ' . $e->getMessage(), 500);
+            error_log($e->getMessage());
+            $this->sendErrorResponse('Failed to serve bowl', 500);
         }
     }
 
@@ -62,7 +63,8 @@ class BowlController extends Controller
             $this->sendSuccessResponse($result);
 
         } catch (\Exception $e) {
-            $this->sendErrorResponse('Failed to load history: ' . $e->getMessage(), 500);
+            error_log($e->getMessage());
+            $this->sendErrorResponse('Failed to load history', 500);
         }
     }
 }

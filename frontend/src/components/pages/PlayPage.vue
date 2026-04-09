@@ -197,14 +197,14 @@ onMounted(() => {
 
       <!-- Serve result overlay (after serving) — horizontal layout -->
       <template v-if="bowlStore.serveResult">
-        <div class="flex-1 flex items-center justify-center gap-8 px-4">
+        <div class="flex-1 flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8 px-4">
           <!-- Left: Bowl -->
           <div class="flex-shrink-0">
             <BowlBuilder :selections="bowlStore.selections" :ingredient-map="ingredientStore.ingredientMap" :bowl-sprite="selectedBowl?.src" />
           </div>
 
           <!-- Right: Stats panel -->
-          <div class="bg-ramen-dark/95 border-2 border-ramen-gold/60 p-5 w-80 max-h-[80vh] overflow-y-auto space-y-3 shadow-lg shadow-ramen-gold/10 serve-panel">
+          <div class="bg-ramen-dark/95 border-2 border-ramen-gold/60 p-4 md:p-5 w-full max-w-sm md:w-80 max-h-[80vh] overflow-y-auto space-y-3 shadow-lg shadow-ramen-gold/10 serve-panel">
             <h3 class="font-pixel text-sm text-ramen-gold text-center mb-1 animate-pulse">Bowl Served!</h3>
 
             <!-- Big total score -->
@@ -268,9 +268,9 @@ onMounted(() => {
             <!-- Combos found -->
             <div v-if="groupedPairings.length > 0" class="border-t border-ramen-brown pt-2">
               <div class="font-pixel text-[7px] text-ramen-cream/40 mb-1">Combos:</div>
-              <div v-for="p in groupedPairings" :key="p.combo_name" class="mb-1">
-                <div class="font-pixel text-[7px]" :class="p.score_modifier >= 0 ? 'text-ramen-orange' : 'text-ramen-red'">
-                  {{ p.combo_name }} ({{ p.score_modifier >= 0 ? '+' : '' }}{{ p.score_modifier }})
+              <div v-for="p in groupedPairings" :key="p.comboName" class="mb-1">
+                <div class="font-pixel text-[7px]" :class="p.scoreModifier >= 0 ? 'text-ramen-orange' : 'text-ramen-red'">
+                  {{ p.comboName }} ({{ p.scoreModifier >= 0 ? '+' : '' }}{{ p.scoreModifier }})
                 </div>
                 <div v-if="p.pairs && p.pairs.length" class="font-pixel text-[6px] text-ramen-cream/30 ml-2">
                   {{ [...new Set(p.pairs.flatMap(pr => pr.split(' + ')))].join(' + ') }}
@@ -340,14 +340,14 @@ onMounted(() => {
               class="font-pixel text-[8px] text-ramen-cream/40 hover:text-ramen-cream transition-colors w-16 py-3 -my-3 text-right"
               @click="stepIndex = 0"
             >
-              SKIP &gt;
+              NEXT &gt;
             </button>
           </div>
           <div class="flex gap-4 justify-center">
             <button
               v-for="bowl in bowlOptions"
               :key="bowl.name"
-              class="flex flex-col items-center justify-center gap-1.5 p-2.5 border-2 transition-all w-[100px] h-[140px] flex-shrink-0"
+              class="flex flex-col items-center justify-center gap-1.5 p-2 md:p-2.5 border-2 transition-all w-[80px] h-[115px] md:w-[100px] md:h-[140px] flex-shrink-0"
               :class="selectedBowl?.name === bowl.name
                 ? 'border-ramen-gold bg-ramen-dark shadow-[0_0_8px_rgba(255,215,0,0.3)]'
                 : 'border-ramen-brown bg-ramen-darker hover:border-ramen-cream/40'"
@@ -396,13 +396,13 @@ onMounted(() => {
                   : 'text-ramen-cream/40'"
                 @click="nextStep"
               >
-                {{ isMultiSelect && bowlStore.selections[currentCategory.name]?.length > 0 ? 'NEXT' : 'SKIP' }} &gt;
+                NEXT &gt;
               </button>
               <div v-else class="w-16"></div>
             </div>
 
-            <!-- Ingredient row (always single line) -->
-            <div class="flex gap-2 justify-center flex-nowrap">
+            <!-- Ingredient row -->
+            <div class="flex gap-2 justify-center flex-wrap md:flex-nowrap">
               <IngredientCard
                 v-for="ingredient in currentIngredients"
                 :key="ingredient.id"

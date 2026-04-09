@@ -110,9 +110,9 @@ export const useBowlStore = defineStore('bowl', () => {
     // Pairing bonuses: check every pair of selected ingredients
     let pairingTotal = 0
     ingredientStore.pairings.forEach((pairing) => {
-      const id1 = pairing.ingredient_1_id ?? pairing.ingredient1Id
-      const id2 = pairing.ingredient_2_id ?? pairing.ingredient2Id
-      const modifier = pairing.score_modifier ?? pairing.scoreModifier ?? 0
+      const id1 = pairing.ingredient1Id
+      const id2 = pairing.ingredient2Id
+      const modifier = pairing.scoreModifier ?? 0
 
       if (ids.includes(id1) && ids.includes(id2)) {
         pairingTotal += modifier
@@ -149,10 +149,10 @@ export const useBowlStore = defineStore('bowl', () => {
     ids.forEach((id) => {
       const ing = ingredientStore.ingredientMap[id]
       if (ing) {
-        totalCalories += Number(ing.calories_per_serving || ing.caloriesPerServing || 0)
-        totalProtein += Number(ing.protein_g || ing.proteinG || 0)
-        totalFat += Number(ing.fat_g || ing.fatG || 0)
-        totalCarbs += Number(ing.carbs_g || ing.carbsG || 0)
+        totalCalories += Number(ing.caloriesPerServing || 0)
+        totalProtein += Number(ing.proteinG || 0)
+        totalFat += Number(ing.fatG || 0)
+        totalCarbs += Number(ing.carbsG || 0)
       }
     })
 
@@ -219,43 +219,40 @@ export const useBowlStore = defineStore('bowl', () => {
     const totalScore = tastinessResult.score + nutritionResult.score
     const xpEarned = totalScore
 
-    const payload = {
-      ingredient_ids: selectedIds.value,
-      tastiness_score: tastinessResult.score,
-      nutrition_score: nutritionResult.score,
-      total_score: totalScore,
-      xp_earned: xpEarned,
-    }
+    // Only send ingredient_ids — server calculates all scores
+    const payload = { ingredient_ids: selectedIds.value }
 
     return api.post('/bowls/serve', payload)
       .then((response) => {
         const result = {
-          tastiness: tastinessResult.score,
+          // Server-authoritative scores (camelCase from API)
+          tastiness: response.data.tastinessScore,
+          nutrition: response.data.nutritionScore,
+          totalScore: response.data.totalScore,
+          xpEarned: response.data.xpEarned,
+          newTotalXp: response.data.totalXp,
+          newRank: response.data.currentRank,
+          pairingsFound: response.data.pairingsFound || [],
+          // Client-side breakdown for UI detail panel
           tastinessBreakdown: tastinessResult.breakdown,
-          nutrition: nutritionResult.score,
           nutritionBreakdown: nutritionResult.breakdown,
           macros: nutritionResult.macros,
-          totalScore,
-          xpEarned,
-          newTotalXp: response.data.total_xp,
-          newRank: response.data.current_rank,
-          pairingsFound: response.data.pairings_found || [],
           newAchievements: [],
         }
 
         // Update the auth store with new XP/rank
         const authStore = useAuthStore()
         if (authStore.user) {
-          authStore.user.totalXp = response.data.total_xp
-          authStore.user.currentRank = response.data.current_rank
+          authStore.user.totalXp = response.data.totalXp
+          authStore.user.currentRank = response.data.currentRank
           localStorage.setItem('user', JSON.stringify(authStore.user))
         }
 
         // Chain achievement check after serving (Promise API for grading)
         return api.post('/achievements/check', {
           ingredient_ids: payload.ingredient_ids,
-          total_score: totalScore,
-          bowl_id: response.data.bowl_id,
+          total_score: response.data.totalScore,
+          bowl_id: response.data.bowlId,
         }).then(function (achievementResponse) {
           result.newAchievements = achievementResponse.data || []
           serveResult.value = result

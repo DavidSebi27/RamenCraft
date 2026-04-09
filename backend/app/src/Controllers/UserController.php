@@ -2,82 +2,42 @@
 
 namespace App\Controllers;
 
-use App\Config\Database;
 use App\Framework\Controller;
+use App\Models\User;
+use App\Repositories\UserRepository;
 
 /**
- * UserController — handles API requests for user management
+ * UserController — HTTP layer for user management.
  *
- * Endpoints:
- *   GET    /api/users      — list all users (paginated)
- *   GET    /api/users/{id} — get a single user
- *   PUT    /api/users/{id} — update a user (role, username, etc.)
- *   DELETE /api/users/{id} — delete a user
- *
- * Note: user creation is handled by auth/register (Phase 4).
+ * No SQL here. All data access goes through UserRepository.
  */
 class UserController extends Controller
 {
     /**
-     * GET /api/users
-     *
-     * Returns a paginated list of users (never exposes password_hash).
+     * GET /api/users?search=&role=&rank=&page=&limit=
      */
     public function getAll(): void
     {
         try {
-            $db = Database::getConnection();
-
+            $search = $_GET['search'] ?? null;
+            $role = $_GET['role'] ?? null;
+            $rank = $_GET['rank'] ?? null;
             $page = max(1, (int) ($_GET['page'] ?? 1));
             $limit = min(50, max(1, (int) ($_GET['limit'] ?? 10)));
-            $offset = ($page - 1) * $limit;
 
-            $where = '';
-            $params = [];
-
-            if (!empty($_GET['search'])) {
-                $where = "WHERE (username LIKE :search OR email LIKE :search2)";
-                $params[':search'] = '%' . $_GET['search'] . '%';
-                $params[':search2'] = '%' . $_GET['search'] . '%';
-            }
-
-            if (!empty($_GET['role'])) {
-                $where .= ($where ? ' AND' : 'WHERE') . ' role = :role';
-                $params[':role'] = $_GET['role'];
-            }
-
-            if (!empty($_GET['rank'])) {
-                $where .= ($where ? ' AND' : 'WHERE') . ' current_rank = :rank';
-                $params[':rank'] = $_GET['rank'];
-            }
-
-            $countStmt = $db->prepare("SELECT COUNT(*) FROM users {$where}");
-            $countStmt->execute($params);
-            $total = (int) $countStmt->fetchColumn();
-
-            $sql = "SELECT id, username, email, role, total_xp, current_rank, created_at, updated_at
-                    FROM users {$where}
-                    ORDER BY id ASC
-                    LIMIT :limit OFFSET :offset";
-
-            $stmt = $db->prepare($sql);
-            foreach ($params as $key => $val) {
-                $stmt->bindValue($key, $val);
-            }
-            $stmt->bindValue(':limit', $limit, \PDO::PARAM_INT);
-            $stmt->bindValue(':offset', $offset, \PDO::PARAM_INT);
-            $stmt->execute();
-
-            $users = array_map([$this, 'formatUser'], $stmt->fetchAll());
+            $repo = new UserRepository();
+            $users = $repo->findAll($search, $role, $rank, $page, $limit);
+            $total = $repo->count($search, $role, $rank);
 
             $this->sendSuccessResponse([
-                'data' => $users,
-                'page' => $page,
+                'data'  => array_map(fn(User $u) => $u->toArray(), $users),
+                'page'  => $page,
                 'limit' => $limit,
                 'total' => $total,
             ]);
         } catch (\Exception $e) {
-            $this->sendErrorResponse('Failed to fetch users: ' . $e->getMessage(), 500);
+            error_log($e->getMessage());
+            $this->sendErrorResponse('Failed to fetch users', 500);
         }
     }
 
@@ -93,31 +53,23 @@ class UserController extends Controller
                 return;
             }
 
-            $db = Database::getConnection();
+            $repo = new UserRepository();
+            $user = $repo->findById($id);
 
-            $stmt = $db->prepare(
-                "SELECT id, username, email, role, total_xp, current_rank, created_at, updated_at
-                 FROM users WHERE id = :id"
-            );
-            $stmt->bindValue(':id', $id, \PDO::PARAM_INT);
-            $stmt->execute();
-
-            $row = $stmt->fetch();
-            if (!$row) {
+            if (!$user) {
                 $this->sendErrorResponse('User not found', 404);
                 return;
             }
 
-            $this->sendSuccessResponse($this->formatUser($row));
+            $this->sendSuccessResponse($user->toArray());
         } catch (\Exception $e) {
-            $this->sendErrorResponse('Failed to fetch user: ' . $e->getMessage(), 500);
+            error_log($e->getMessage());
+            $this->sendErrorResponse('Failed to fetch user', 500);
         }
     }
 
     /**
      * PUT /api/users/{id}
-     *
-     * Updates user fields (role, username, email). Never updates password here.
      */
     public function update(array $vars = []): void
     {
@@ -130,19 +82,8 @@ class UserController extends Controller
                 return;
             }
 
-            // Users can only update themselves, admins can update anyone
             if ($payload->role !== 'admin' && $payload->sub !== $id) {
                 $this->sendErrorResponse('Forbidden — you can only update your own profile', 403);
-                return;
-            }
-
-            $db = Database::getConnection();
-
-            $check = $db->prepare("SELECT id FROM users WHERE id = :id");
-            $check->bindValue(':id', $id, \PDO::PARAM_INT);
-            $check->execute();
-            if (!$check->fetch()) {
-                $this->sendErrorResponse('User not found', 404);
                 return;
             }
 
@@ -152,35 +93,19 @@ class UserController extends Controller
                 return;
             }
 
-            $sql = "UPDATE users SET
-                        username = COALESCE(:username, username),
-                        email = COALESCE(:email, email),
-                        role = COALESCE(:role, role),
-                        total_xp = COALESCE(:total_xp, total_xp),
-                        current_rank = COALESCE(:current_rank, current_rank)
-                    WHERE id = :id";
+            $repo = new UserRepository();
 
-            $stmt = $db->prepare($sql);
-            $stmt->execute([
-                ':username' => $input['username'] ?? null,
-                ':email' => $input['email'] ?? null,
-                ':role' => $input['role'] ?? null,
-                ':total_xp' => $input['totalXp'] ?? null,
-                ':current_rank' => $input['currentRank'] ?? null,
-                ':id' => $id,
-            ]);
+            if (!$repo->exists($id)) {
+                $this->sendErrorResponse('User not found', 404);
+                return;
+            }
 
-            // Return updated user
-            $fetchStmt = $db->prepare(
-                "SELECT id, username, email, role, total_xp, current_rank, created_at, updated_at
-                 FROM users WHERE id = :id"
-            );
-            $fetchStmt->bindValue(':id', $id, \PDO::PARAM_INT);
-            $fetchStmt->execute();
+            $user = $repo->update($id, $input);
 
-            $this->sendSuccessResponse($this->formatUser($fetchStmt->fetch()));
+            $this->sendSuccessResponse($user->toArray());
         } catch (\Exception $e) {
-            $this->sendErrorResponse('Failed to update user: ' . $e->getMessage(), 500);
+            error_log($e->getMessage());
+            $this->sendErrorResponse('Failed to update user', 500);
         }
     }
 
@@ -198,44 +123,18 @@ class UserController extends Controller
                 return;
             }
 
-            $db = Database::getConnection();
+            $repo = new UserRepository();
+            $deleted = $repo->delete($id);
 
-            // Clean up related data first
-            $db->prepare("DELETE FROM bowl_ingredients WHERE bowl_id IN (SELECT id FROM served_bowls WHERE user_id = :uid)")->execute([':uid' => $id]);
-            $db->prepare("DELETE FROM served_bowls WHERE user_id = :uid")->execute([':uid' => $id]);
-            $db->prepare("DELETE FROM user_achievements WHERE user_id = :uid")->execute([':uid' => $id]);
-            $db->prepare("DELETE FROM favorite_ingredients WHERE favorite_id IN (SELECT id FROM favorites WHERE user_id = :uid)")->execute([':uid' => $id]);
-            $db->prepare("DELETE FROM favorites WHERE user_id = :uid")->execute([':uid' => $id]);
-
-            $stmt = $db->prepare("DELETE FROM users WHERE id = :id");
-            $stmt->bindValue(':id', $id, \PDO::PARAM_INT);
-            $stmt->execute();
-
-            if ($stmt->rowCount() === 0) {
+            if (!$deleted) {
                 $this->sendErrorResponse('User not found', 404);
                 return;
             }
 
             $this->sendSuccessResponse(['message' => 'User deleted']);
         } catch (\Exception $e) {
-            $this->sendErrorResponse('Failed to delete user: ' . $e->getMessage(), 500);
+            error_log($e->getMessage());
+            $this->sendErrorResponse('Failed to delete user', 500);
         }
-    }
-
-    /**
-     * Convert DB row to camelCase (never expose password_hash)
-     */
-    private function formatUser(array $row): array
-    {
-        return [
-            'id' => (int) $row['id'],
-            'username' => $row['username'],
-            'email' => $row['email'],
-            'role' => $row['role'],
-            'totalXp' => (int) $row['total_xp'],
-            'currentRank' => $row['current_rank'],
-            'createdAt' => $row['created_at'],
-            'updatedAt' => $row['updated_at'],
-        ];
     }
 }

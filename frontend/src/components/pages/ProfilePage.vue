@@ -133,15 +133,15 @@ onMounted(() => {
         >
           <div>
             <div class="font-pixel text-[8px] text-ramen-cream/40">
-              {{ new Date(bowl.served_at).toLocaleDateString() }}
+              {{ new Date(bowl.servedAt).toLocaleDateString() }}
             </div>
             <div class="text-xs text-ramen-cream">
               {{ bowl.ingredients?.map(i => i.name).join(', ') || 'Bowl #' + bowl.id }}
             </div>
           </div>
           <div class="text-right">
-            <div class="font-pixel text-xs text-ramen-gold">{{ bowl.total_score }} pts</div>
-            <div class="font-pixel text-[8px] text-ramen-neon">+{{ bowl.xp_earned }} XP</div>
+            <div class="font-pixel text-xs text-ramen-gold">{{ bowl.totalScore }} pts</div>
+            <div class="font-pixel text-[8px] text-ramen-neon">+{{ bowl.xpEarned }} XP</div>
           </div>
         </div>
       </div>

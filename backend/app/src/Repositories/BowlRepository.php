@@ -3,26 +3,27 @@
 namespace App\Repositories;
 
 use App\Config\Database;
+use App\Models\BowlIngredient;
 use App\Models\ServedBowl;
 
 /**
- * BowlRepository — database queries for served bowls.
+ * BowlRepository — owns ALL SQL for served bowls and bowl ingredients.
  *
- * Returns ServedBowl model objects.
- * The transaction itself is managed by BowlService since it spans
- * multiple writes (bowl + ingredients + user XP).
+ * Returns typed ServedBowl objects with BowlIngredient[] arrays.
  */
 class BowlRepository
 {
     private \PDO $db;
 
-    public function __construct()
+    public function __construct(?\PDO $db = null)
     {
-        $this->db = Database::getConnection();
+        $this->db = $db ?? Database::getConnection();
     }
 
     /**
      * Insert a new bowl row and return its ID.
+     *
+     * @return int  The new bowl ID
      */
     public function insertBowl(int $userId, int $tastiness, int $nutrition, int $total, int $xp): int
     {
@@ -30,18 +31,21 @@ class BowlRepository
             'INSERT INTO served_bowls (user_id, tastiness_score, nutrition_score, total_score, xp_earned)
              VALUES (:user_id, :tastiness, :nutrition, :total, :xp)'
         );
-        $stmt->execute([
-            ':user_id'   => $userId,
-            ':tastiness' => $tastiness,
-            ':nutrition' => $nutrition,
-            ':total'     => $total,
-            ':xp'        => $xp,
-        ]);
+        $stmt->bindValue(':user_id', $userId, \PDO::PARAM_INT);
+        $stmt->bindValue(':tastiness', $tastiness, \PDO::PARAM_INT);
+        $stmt->bindValue(':nutrition', $nutrition, \PDO::PARAM_INT);
+        $stmt->bindValue(':total', $total, \PDO::PARAM_INT);
+        $stmt->bindValue(':xp', $xp, \PDO::PARAM_INT);
+        $stmt->execute();
+
         return (int) $this->db->lastInsertId();
     }
 
     /**
      * Insert the ingredients for a served bowl.
+     *
+     * @param int $bowlId
+     * @param int[] $ingredientIds
      */
     public function insertBowlIngredients(int $bowlId, array $ingredientIds): void
     {
@@ -49,7 +53,9 @@ class BowlRepository
             'INSERT INTO bowl_ingredients (bowl_id, ingredient_id) VALUES (:bowl_id, :ingredient_id)'
         );
         foreach ($ingredientIds as $id) {
-            $stmt->execute([':bowl_id' => $bowlId, ':ingredient_id' => (int) $id]);
+            $stmt->bindValue(':bowl_id', $bowlId, \PDO::PARAM_INT);
+            $stmt->bindValue(':ingredient_id', (int) $id, \PDO::PARAM_INT);
+            $stmt->execute();
         }
     }
 
@@ -63,9 +69,11 @@ class BowlRepository
         $offset = ($page - 1) * $limit;
 
         $stmt = $this->db->prepare(
-            'SELECT * FROM served_bowls
-             WHERE user_id = :uid
-             ORDER BY served_at DESC
+            'SELECT sb.id, sb.user_id, sb.tastiness_score, sb.nutrition_score,
+                    sb.total_score, sb.xp_earned, sb.served_at
+             FROM served_bowls sb
+             WHERE sb.user_id = :uid
+             ORDER BY sb.served_at DESC
              LIMIT :limit OFFSET :offset'
         );
         $stmt->bindValue(':uid', $userId, \PDO::PARAM_INT);
@@ -76,7 +84,7 @@ class BowlRepository
         /** @var ServedBowl[] $bowls */
         $bowls = $stmt->fetchAll(\PDO::FETCH_CLASS, ServedBowl::class);
 
-        // Load ingredients for each bowl
+        // Load typed BowlIngredient objects for each bowl
         foreach ($bowls as $bowl) {
             $bowl->ingredients = $this->loadIngredientsForBowl((int) $bowl->id);
         }
@@ -86,16 +94,21 @@ class BowlRepository
 
     /**
      * Count total bowls served by a user.
+     *
+     * @return int
      */
     public function countByUser(int $userId): int
     {
         $stmt = $this->db->prepare('SELECT COUNT(*) FROM served_bowls WHERE user_id = :uid');
-        $stmt->execute([':uid' => $userId]);
+        $stmt->bindValue(':uid', $userId, \PDO::PARAM_INT);
+        $stmt->execute();
         return (int) $stmt->fetchColumn();
     }
 
     /**
-     * Load ingredient details for a single bowl.
+     * Load typed BowlIngredient objects for a single bowl.
+     *
+     * @return BowlIngredient[]
      */
     private function loadIngredientsForBowl(int $bowlId): array
     {
@@ -106,7 +119,9 @@ class BowlRepository
              JOIN categories c ON i.category_id = c.id
              WHERE bi.bowl_id = :bowl_id'
         );
-        $stmt->execute([':bowl_id' => $bowlId]);
-        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $stmt->bindValue(':bowl_id', $bowlId, \PDO::PARAM_INT);
+        $stmt->execute();
+
+        return $stmt->fetchAll(\PDO::FETCH_CLASS, BowlIngredient::class);
     }
 }

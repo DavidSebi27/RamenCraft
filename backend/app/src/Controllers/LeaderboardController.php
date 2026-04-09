@@ -2,77 +2,47 @@
 
 namespace App\Controllers;
 
-use App\Config\Database;
 use App\Framework\Controller;
+use App\Models\User;
+use App\Repositories\UserRepository;
 
 /**
- * LeaderboardController — handles the public leaderboard endpoint
+ * LeaderboardController — HTTP layer for the public leaderboard.
  *
- * Endpoints:
- *   GET /api/leaderboard — top players ranked by XP
+ * No SQL here. Player data comes from UserRepository.
  */
 class LeaderboardController extends Controller
 {
     /**
-     * GET /api/leaderboard
-     *
-     * Returns top players sorted by total_xp descending.
-     * Query parameters:
-     *   ?limit=10 — number of players to return (default: 10, max: 50)
+     * GET /api/leaderboard?search=&rank=&page=&limit=
      */
     public function getTopPlayers(): void
     {
         try {
-            $db = Database::getConnection();
+            $search = $_GET['search'] ?? null;
+            $rank   = $_GET['rank'] ?? null;
+            $page   = max(1, (int) ($_GET['page'] ?? 1));
+            $limit  = min(50, max(1, (int) ($_GET['limit'] ?? 10)));
 
-            $page = max(1, (int) ($_GET['page'] ?? 1));
-            $limit = min(50, max(1, (int) ($_GET['limit'] ?? 10)));
-            $offset = ($page - 1) * $limit;
+            $repo    = new UserRepository();
+            $players = $repo->findLeaderboard($search, $rank, $page, $limit);
+            $total   = $repo->countLeaderboard($search, $rank);
 
-            $where = "WHERE role = 'player'";
-            $params = [];
-
-            if (!empty($_GET['search'])) {
-                $where .= " AND username LIKE :search";
-                $params[':search'] = '%' . $_GET['search'] . '%';
+            $position = ($page - 1) * $limit + 1;
+            $data = [];
+            foreach ($players as $user) {
+                $data[] = $user->toLeaderboardArray($position++);
             }
 
-            if (!empty($_GET['rank'])) {
-                $where .= " AND current_rank = :rank";
-                $params[':rank'] = $_GET['rank'];
-            }
-
-            $sql = "SELECT id, username, total_xp, current_rank
-                    FROM users
-                    {$where}
-                    ORDER BY total_xp DESC, id ASC
-                    LIMIT :limit OFFSET :offset";
-
-            $stmt = $db->prepare($sql);
-            foreach ($params as $key => $val) {
-                $stmt->bindValue($key, $val);
-            }
-            $stmt->bindValue(':limit', $limit, \PDO::PARAM_INT);
-            $stmt->bindValue(':offset', $offset, \PDO::PARAM_INT);
-            $stmt->execute();
-
-            $rows = $stmt->fetchAll();
-
-            $players = [];
-            $rank = 1;
-            foreach ($rows as $row) {
-                $players[] = [
-                    'rank' => $rank++,
-                    'id' => (int) $row['id'],
-                    'username' => $row['username'],
-                    'totalXp' => (int) $row['total_xp'],
-                    'currentRank' => $row['current_rank'],
-                ];
-            }
-
-            $this->sendSuccessResponse($players);
+            $this->sendSuccessResponse([
+                'data'  => $data,
+                'page'  => $page,
+                'limit' => $limit,
+                'total' => $total,
+            ]);
         } catch (\Exception $e) {
-            $this->sendErrorResponse('Failed to fetch leaderboard: ' . $e->getMessage(), 500);
+            error_log($e->getMessage());
+            $this->sendErrorResponse('Failed to fetch leaderboard', 500);
         }
     }
 }

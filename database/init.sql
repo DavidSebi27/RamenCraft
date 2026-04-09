@@ -261,5 +261,5 @@ INSERT INTO achievements (name, description, requirement_type, requirement_value
 -- Seed users: one admin and one test player
 -- Password for both: "password123" (bcrypt hash)
 INSERT INTO users (username, email, password_hash, role, total_xp, current_rank) VALUES
-('admin',           'admin@ramencraft.com',  '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin',  0,    'minarai'),
-('RamenApprentice', 'player@ramencraft.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'player', 820,  'jouren');
+('admin',           'admin@ramencraft.com',  '$2y$12$DPu.Ybxv0XYDSyth9mxoKuN1uKoRRASy4rRtE8xOw55s9XOSOfsGa', 'admin',  0,    'minarai'),
+('RamenApprentice', 'player@ramencraft.com', '$2y$12$DPu.Ybxv0XYDSyth9mxoKuN1uKoRRASy4rRtE8xOw55s9XOSOfsGa', 'player', 820,  'jouren');

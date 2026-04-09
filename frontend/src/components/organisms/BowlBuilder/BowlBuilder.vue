@@ -226,6 +226,16 @@ function toppingPos(name) {
   overflow: visible;
 }
 
+/* Scale down on small screens while keeping all positioning intact */
+@media (max-width: 640px) {
+  .bowl-container {
+    transform: scale(0.75);
+    transform-origin: center center;
+    margin-top: -20px;
+    margin-bottom: -20px;
+  }
+}
+
 /*
  * Bowl geometry (3/4 inside, 1/4 side):
  *   Rim ellipse: 280×70, centered at top:30

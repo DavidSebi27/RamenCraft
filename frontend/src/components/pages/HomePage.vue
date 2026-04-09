@@ -70,7 +70,7 @@ const ranks = [
         <div
           v-for="rank in ranks"
           :key="rank.name"
-          class="bg-ramen-dark border border-ramen-brown px-3 py-2 text-center min-w-[120px]"
+          class="bg-ramen-dark border border-ramen-brown px-2 md:px-3 py-2 text-center min-w-[90px] md:min-w-[120px]"
         >
           <div class="font-pixel text-[8px] uppercase" :style="{ color: rank.color }">
             {{ rank.name }}

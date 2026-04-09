@@ -34,7 +34,8 @@ class CategoryController extends Controller
                 'total' => $total,
             ]);
         } catch (\Exception $e) {
-            $this->sendErrorResponse('Failed to fetch categories: ' . $e->getMessage(), 500);
+            error_log($e->getMessage());
+            $this->sendErrorResponse('Failed to fetch categories', 500);
         }
     }
 }

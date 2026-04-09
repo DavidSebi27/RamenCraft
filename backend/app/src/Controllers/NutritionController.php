@@ -2,24 +2,21 @@
 
 namespace App\Controllers;
 
-use App\Config\Database;
 use App\Framework\Controller;
-use App\Services\NutritionApiService;
+use App\Models\Ingredient;
+use App\Repositories\IngredientRepository;
+use App\Services\OpenFoodFactsService;
 
 /**
- * NutritionController — fetches nutrition data from Open Food Facts
+ * NutritionController — HTTP layer for external nutrition API.
  *
- * Endpoints:
- *   GET  /api/nutrition/ingredient/{id} — get nutrition for one ingredient (cached)
- *   POST /api/nutrition/seed            — admin: batch-fetch nutrition for all ingredients
+ * No SQL here. Ingredient data via IngredientRepository.
+ * External API calls via OpenFoodFactsService.
  */
 class NutritionController extends Controller
 {
     /**
      * GET /api/nutrition/ingredient/{id}
-     *
-     * Returns nutrition data for a single ingredient.
-     * Calls the external API (server-side) and caches the result.
      */
     public function getByIngredient(array $vars = []): void
     {
@@ -30,79 +27,65 @@ class NutritionController extends Controller
                 return;
             }
 
-            $db = Database::getConnection();
-
-            $stmt = $db->prepare("SELECT id, name, description FROM ingredients WHERE id = :id");
-            $stmt->bindValue(':id', $id, \PDO::PARAM_INT);
-            $stmt->execute();
-            $ingredient = $stmt->fetch();
+            $repo = new IngredientRepository();
+            $ingredient = $repo->findById($id);
 
             if (!$ingredient) {
                 $this->sendErrorResponse('Ingredient not found', 404);
                 return;
             }
 
-            // Pass ingredient name — the service maps it to English search terms
-            $service = new NutritionApiService();
-            $nutrition = $service->getNutrition($ingredient['name']);
+            $service = new OpenFoodFactsService();
+            $nutrition = $service->getNutrition($ingredient->name);
 
             $this->sendSuccessResponse([
-                'ingredientId'   => (int) $ingredient['id'],
-                'ingredientName' => $ingredient['name'],
+                'ingredientId'   => (int) $ingredient->id,
+                'ingredientName' => $ingredient->name,
                 'nutrition'      => $nutrition,
             ]);
         } catch (\Exception $e) {
-            $this->sendErrorResponse('Failed to fetch nutrition: ' . $e->getMessage(), 500);
+            error_log($e->getMessage());
+            $this->sendErrorResponse('Failed to fetch nutrition', 500);
         }
     }
 
     /**
      * POST /api/nutrition/seed
      *
-     * Admin-only. Loops through all ingredients, fetches nutrition from
-     * Open Food Facts, and updates the ingredients table with real data.
-     * Respects rate limits with a small delay between API calls.
+     * Admin-only. Fetches nutrition from Open Food Facts for all ingredients
+     * and updates the database with real data.
      */
     public function seedAll(): void
     {
         $this->requireAdmin();
 
         try {
-            $db = Database::getConnection();
-
-            $stmt = $db->query("SELECT id, name, description FROM ingredients ORDER BY id");
-            $ingredients = $stmt->fetchAll();
-
-            $service = new NutritionApiService();
+            $repo = new IngredientRepository();
+            $ingredients = $repo->findAllForSeeding();
+            $service = new OpenFoodFactsService();
             $results = [];
 
             foreach ($ingredients as $ingredient) {
-                $nutrition = $service->getNutrition($ingredient['name']);
+                $nutrition = $service->getNutrition($ingredient->name);
 
-                // Update the ingredient row with API nutrition data (fat + carbs from free tier)
-                if ($nutrition['source'] === 'api-ninjas') {
-                    $update = $db->prepare(
-                        "UPDATE ingredients SET
-                            fat_g = :fat,
-                            carbs_g = :carbs
-                         WHERE id = :id"
+                if ($nutrition['source'] === 'openfoodfacts') {
+                    $repo->updateNutrition(
+                        (int) $ingredient->id,
+                        (float) $nutrition['calories'],
+                        (float) $nutrition['protein_g'],
+                        (float) $nutrition['fat_g'],
+                        (float) $nutrition['carbs_g']
                     );
-                    $update->execute([
-                        ':fat'   => $nutrition['fat_g'],
-                        ':carbs' => $nutrition['carbs_g'],
-                        ':id'    => $ingredient['id'],
-                    ]);
                 }
 
                 $results[] = [
-                    'id'        => (int) $ingredient['id'],
-                    'name'      => $ingredient['name'],
+                    'id'        => (int) $ingredient->id,
+                    'name'      => $ingredient->name,
                     'nutrition'  => $nutrition,
                     'updated'   => $nutrition['source'] === 'openfoodfacts',
                 ];
 
-                // Small delay to be polite to the API (no rate limit, but good practice)
-                usleep(500000); // 0.5 seconds
+                usleep(500000);
             }
 
             $this->sendSuccessResponse([
@@ -110,7 +93,8 @@ class NutritionController extends Controller
                 'results' => $results,
             ]);
         } catch (\Exception $e) {
-            $this->sendErrorResponse('Failed to seed nutrition: ' . $e->getMessage(), 500);
+            error_log($e->getMessage());
+            $this->sendErrorResponse('Failed to seed nutrition', 500);
         }
     }
 }

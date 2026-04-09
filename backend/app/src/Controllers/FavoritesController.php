@@ -2,26 +2,19 @@
 
 namespace App\Controllers;
 
-use App\Config\Database;
 use App\Framework\Controller;
+use App\Models\Favorite;
+use App\Repositories\FavoritesRepository;
 
 /**
- * FavoritesController — save and load favorite bowl configurations
+ * FavoritesController — HTTP layer for saved bowl configurations.
  *
- * Endpoints:
- *   GET    /api/favorites          — list user's saved bowls (paginated)
- *   GET    /api/favorites/{id}     — get a single favorite with ingredients
- *   POST   /api/favorites          — save current bowl as a favorite
- *   DELETE /api/favorites/{id}     — remove a saved bowl
+ * No SQL here. All data access goes through FavoritesRepository.
  */
 class FavoritesController extends Controller
 {
     /**
-     * GET /api/favorites
-     *
-     * Returns the authenticated user's saved bowls with pagination.
-     * Each favorite includes its ingredient list.
-     * Supports: ?page=1&limit=10&search=classic
+     * GET /api/favorites?search=&page=&limit=
      */
     public function getAll(): void
     {
@@ -29,84 +22,23 @@ class FavoritesController extends Controller
         $userId = (int) $payload->sub;
 
         try {
-            $db = Database::getConnection();
-
+            $search = $_GET['search'] ?? null;
             $page = max(1, (int) ($_GET['page'] ?? 1));
             $limit = min(50, max(1, (int) ($_GET['limit'] ?? 20)));
-            $offset = ($page - 1) * $limit;
 
-            // Count total
-            $countSql = "SELECT COUNT(*) FROM favorites WHERE user_id = :uid";
-            $countParams = [':uid' => $userId];
-
-            if (!empty($_GET['search'])) {
-                $countSql .= " AND name LIKE :search";
-                $countParams[':search'] = '%' . $_GET['search'] . '%';
-            }
-
-            $countStmt = $db->prepare($countSql);
-            $countStmt->execute($countParams);
-            $total = (int) $countStmt->fetchColumn();
-
-            // Fetch favorites
-            $sql = "SELECT * FROM favorites WHERE user_id = :uid";
-            $params = [':uid' => $userId];
-
-            if (!empty($_GET['search'])) {
-                $sql .= " AND name LIKE :search";
-                $params[':search'] = '%' . $_GET['search'] . '%';
-            }
-
-            $sql .= " ORDER BY created_at DESC LIMIT :limit OFFSET :offset";
-
-            $stmt = $db->prepare($sql);
-            foreach ($params as $key => $val) {
-                $stmt->bindValue($key, $val);
-            }
-            $stmt->bindValue(':limit', $limit, \PDO::PARAM_INT);
-            $stmt->bindValue(':offset', $offset, \PDO::PARAM_INT);
-            $stmt->execute();
-
-            $favorites = $stmt->fetchAll(\PDO::FETCH_ASSOC);
-
-            // Fetch ingredients for each favorite
-            $ingredientStmt = $db->prepare(
-                "SELECT fi.ingredient_id, i.name, i.name_jp, c.name AS category_name
-                 FROM favorite_ingredients fi
-                 JOIN ingredients i ON fi.ingredient_id = i.id
-                 JOIN categories c ON i.category_id = c.id
-                 WHERE fi.favorite_id = :fid
-                 ORDER BY c.sort_order, i.name"
-            );
-
-            $result = [];
-            foreach ($favorites as $fav) {
-                $ingredientStmt->execute([':fid' => $fav['id']]);
-                $ingredients = $ingredientStmt->fetchAll(\PDO::FETCH_ASSOC);
-
-                $result[] = [
-                    'id' => (int) $fav['id'],
-                    'name' => $fav['name'],
-                    'createdAt' => $fav['created_at'],
-                    'ingredients' => array_map(function ($ing) {
-                        return [
-                            'id' => (int) $ing['ingredient_id'],
-                            'name' => $ing['name'],
-                            'nameJp' => $ing['name_jp'],
-                            'category' => $ing['category_name'],
-                        ];
-                    }, $ingredients),
-                ];
-            }
+            $repo = new FavoritesRepository();
+            $favorites = $repo->findByUser($userId, $search, $page, $limit);
+            $total = $repo->countByUser($userId, $search);
 
             $this->sendSuccessResponse([
-                'data' => $result,
-                'page' => $page,
+                'data'  => array_map(fn(Favorite $f) => $f->toArray(), $favorites),
+                'page'  => $page,
                 'limit' => $limit,
                 'total' => $total,
             ]);
         } catch (\Exception $e) {
-            $this->sendErrorResponse('Failed to fetch favorites: ' . $e->getMessage(), 500);
+            error_log($e->getMessage());
+            $this->sendErrorResponse('Failed to fetch favorites', 500);
         }
     }
 
@@ -125,51 +57,23 @@ class FavoritesController extends Controller
                 return;
             }
 
-            $db = Database::getConnection();
+            $repo = new FavoritesRepository();
+            $favorite = $repo->findByIdForUser($id, $userId);
 
-            $stmt = $db->prepare("SELECT * FROM favorites WHERE id = :id AND user_id = :uid");
-            $stmt->execute([':id' => $id, ':uid' => $userId]);
-            $fav = $stmt->fetch(\PDO::FETCH_ASSOC);
-
-            if (!$fav) {
+            if (!$favorite) {
                 $this->sendErrorResponse('Favorite not found', 404);
                 return;
             }
 
-            // Fetch ingredients
-            $ingStmt = $db->prepare(
-                "SELECT fi.ingredient_id, i.name, i.name_jp, c.name AS category_name
-                 FROM favorite_ingredients fi
-                 JOIN ingredients i ON fi.ingredient_id = i.id
-                 JOIN categories c ON i.category_id = c.id
-                 WHERE fi.favorite_id = :fid
-                 ORDER BY c.sort_order, i.name"
-            );
-            $ingStmt->execute([':fid' => $id]);
-
-            $this->sendSuccessResponse([
-                'id' => (int) $fav['id'],
-                'name' => $fav['name'],
-                'createdAt' => $fav['created_at'],
-                'ingredients' => array_map(function ($ing) {
-                    return [
-                        'id' => (int) $ing['ingredient_id'],
-                        'name' => $ing['name'],
-                        'nameJp' => $ing['name_jp'],
-                        'category' => $ing['category_name'],
-                    ];
-                }, $ingStmt->fetchAll(\PDO::FETCH_ASSOC)),
-            ]);
+            $this->sendSuccessResponse($favorite->toArray());
         } catch (\Exception $e) {
-            $this->sendErrorResponse('Failed to fetch favorite: ' . $e->getMessage(), 500);
+            error_log($e->getMessage());
+            $this->sendErrorResponse('Failed to fetch favorite', 500);
         }
     }
 
     /**
      * POST /api/favorites
-     *
-     * Save the current bowl as a favorite.
-     * Expects JSON: { "name": "My Classic Bowl", "ingredient_ids": [1, 9, 13, 17, 26] }
      */
     public function create(): void
     {
@@ -190,25 +94,8 @@ class FavoritesController extends Controller
                 return;
             }
 
-            $db = Database::getConnection();
-            $db->beginTransaction();
-
-            // Insert favorite
-            $stmt = $db->prepare(
-                "INSERT INTO favorites (user_id, name) VALUES (:uid, :name)"
-            );
-            $stmt->execute([':uid' => $userId, ':name' => $name]);
-            $favId = (int) $db->lastInsertId();
-
-            // Insert ingredients
-            $ingStmt = $db->prepare(
-                "INSERT INTO favorite_ingredients (favorite_id, ingredient_id) VALUES (:fid, :iid)"
-            );
-            foreach ($input['ingredient_ids'] as $ingredientId) {
-                $ingStmt->execute([':fid' => $favId, ':iid' => (int) $ingredientId]);
-            }
-
-            $db->commit();
+            $repo = new FavoritesRepository();
+            $favId = $repo->insert($userId, $name, $input['ingredient_ids']);
 
             $this->sendSuccessResponse([
                 'id' => $favId,
@@ -216,18 +103,13 @@ class FavoritesController extends Controller
                 'message' => 'Bowl saved to favorites',
             ], 201);
         } catch (\Exception $e) {
-            if (isset($db) && $db->inTransaction()) {
-                $db->rollBack();
-            }
-            $this->sendErrorResponse('Failed to save favorite: ' . $e->getMessage(), 500);
+            error_log($e->getMessage());
+            $this->sendErrorResponse('Failed to save favorite', 500);
         }
     }
 
     /**
      * PUT /api/favorites/{id}
-     *
-     * Update a saved bowl's name and/or ingredients.
-     * Expects JSON: { "name": "New Name", "ingredient_ids": [1, 9, 13] }
      */
     public function update(array $vars = []): void
     {
@@ -241,51 +123,21 @@ class FavoritesController extends Controller
                 return;
             }
 
-            $db = Database::getConnection();
-
-            // Verify ownership
-            $check = $db->prepare("SELECT id FROM favorites WHERE id = :id AND user_id = :uid");
-            $check->execute([':id' => $id, ':uid' => $userId]);
-            if (!$check->fetch()) {
-                $this->sendErrorResponse('Favorite not found', 404);
-                return;
-            }
-
             $input = json_decode(file_get_contents('php://input'), true);
             if (!$input) {
                 $this->sendErrorResponse('Request body is required', 400);
                 return;
             }
 
-            $db->beginTransaction();
-
-            // Update name if provided
-            if (!empty($input['name'])) {
-                $db->prepare("UPDATE favorites SET name = :name WHERE id = :id")
-                   ->execute([':name' => trim($input['name']), ':id' => $id]);
-            }
-
-            // Replace ingredients if provided
-            if (!empty($input['ingredient_ids']) && is_array($input['ingredient_ids'])) {
-                $db->prepare("DELETE FROM favorite_ingredients WHERE favorite_id = :fid")
-                   ->execute([':fid' => $id]);
-
-                $ingStmt = $db->prepare(
-                    "INSERT INTO favorite_ingredients (favorite_id, ingredient_id) VALUES (:fid, :iid)"
-                );
-                foreach ($input['ingredient_ids'] as $ingredientId) {
-                    $ingStmt->execute([':fid' => $id, ':iid' => (int) $ingredientId]);
-                }
-            }
-
-            $db->commit();
+            $repo = new FavoritesRepository();
+            $repo->update($id, $userId, $input);
 
             $this->sendSuccessResponse(['id' => $id, 'message' => 'Favorite updated']);
+        } catch (\RuntimeException $e) {
+            $this->sendErrorResponse('Favorite not found', 404);
         } catch (\Exception $e) {
-            if (isset($db) && $db->inTransaction()) {
-                $db->rollBack();
-            }
-            $this->sendErrorResponse('Failed to update favorite: ' . $e->getMessage(), 500);
+            error_log($e->getMessage());
+            $this->sendErrorResponse('Failed to update favorite', 500);
         }
     }
 
@@ -304,20 +156,18 @@ class FavoritesController extends Controller
                 return;
             }
 
-            $db = Database::getConnection();
+            $repo = new FavoritesRepository();
+            $deleted = $repo->deleteForUser($id, $userId);
 
-            // Only delete if the favorite belongs to this user
-            $stmt = $db->prepare("DELETE FROM favorites WHERE id = :id AND user_id = :uid");
-            $stmt->execute([':id' => $id, ':uid' => $userId]);
-
-            if ($stmt->rowCount() === 0) {
+            if (!$deleted) {
                 $this->sendErrorResponse('Favorite not found', 404);
                 return;
             }
 
             $this->sendSuccessResponse(['message' => 'Favorite deleted']);
         } catch (\Exception $e) {
-            $this->sendErrorResponse('Failed to delete favorite: ' . $e->getMessage(), 500);
+            error_log($e->getMessage());
+            $this->sendErrorResponse('Failed to delete favorite', 500);
         }
     }
 }

@@ -2,23 +2,28 @@
 
 namespace App\Services;
 
-use App\Config\Database;
 use App\Models\Ingredient;
+use App\Models\PairingGroup;
 use App\Repositories\IngredientRepository;
+use App\Repositories\PairingRepository;
 
 /**
  * ScoringService — calculates tastiness, nutrition, and XP server-side.
  *
  * Works with typed Ingredient objects from the repository, not raw arrays.
- * Client-provided scores are ignored — everything is recalculated here.
+ * Dependencies are injected through the constructor.
  */
 class ScoringService
 {
     private IngredientRepository $ingredientRepo;
+    private PairingRepository $pairingRepo;
 
-    public function __construct()
-    {
-        $this->ingredientRepo = new IngredientRepository();
+    public function __construct(
+        ?IngredientRepository $ingredientRepo = null,
+        ?PairingRepository $pairingRepo = null
+    ) {
+        $this->ingredientRepo = $ingredientRepo ?? new IngredientRepository();
+        $this->pairingRepo = $pairingRepo ?? new PairingRepository();
     }
 
     /**
@@ -26,48 +31,44 @@ class ScoringService
      */
     public function calculate(array $ingredientIds): array
     {
-        // Fetch typed Ingredient objects from the repository
+        /** @var Ingredient[] $ingredients */
         $ingredients = $this->ingredientRepo->findByIds($ingredientIds);
 
-        // Fetch matching pairings (still raw arrays — pairings don't have a model yet)
-        $pairings = $this->findMatchingPairings(Database::getConnection(), $ingredientIds);
+        $pairings = $this->pairingRepo->findMatchingForIngredients($ingredientIds);
 
         $tastiness = $this->calculateTastiness($ingredients, $pairings);
         $nutrition = $this->calculateNutrition($ingredients);
 
         $totalScore = $tastiness + $nutrition;
-        $xpEarned = min($totalScore, 500); // Cap XP per bowl
+        $xpEarned = min($totalScore, 500);
 
         return [
             'tastiness_score'  => $tastiness,
             'nutrition_score'  => $nutrition,
             'total_score'      => $totalScore,
             'xp_earned'        => $xpEarned,
-            'pairings_found'   => $pairings,
+            'pairings_found'   => array_map(fn(PairingGroup $p) => $p->toArray(), $pairings),
         ];
     }
 
     /**
-     * Calculate tastiness score from typed Ingredient objects.
+     * Calculate tastiness score from typed Ingredient and PairingGroup objects.
      *
      * @param Ingredient[] $ingredients
-     * @param array $pairings  Grouped pairing arrays from findMatchingPairings()
+     * @param PairingGroup[] $pairings
      */
     private function calculateTastiness(array $ingredients, array $pairings): int
     {
-        // Base: 10 per ingredient
         $score = count($ingredients) * 10;
 
-        // Variety bonus: +5 per unique category
         $categories = [];
         foreach ($ingredients as $ing) {
             if ($ing->category_name) $categories[$ing->category_name] = true;
         }
         $score += count($categories) * 5;
 
-        // Pairing bonuses
         foreach ($pairings as $pairing) {
-            $score += (int) $pairing['score_modifier'];
+            $score += $pairing->score_modifier;
         }
 
         return max(0, $score);
@@ -98,70 +99,26 @@ class ScoringService
             }
         }
 
-        // Protein score (0-30)
+        // Protein (0-30)
         if ($totalProtein >= 25) $score += 30;
         elseif ($totalProtein >= 15) $score += 20;
         elseif ($totalProtein >= 8) $score += 10;
 
-        // Calorie balance (0-30) — ideal range 300-800
+        // Calorie balance (0-30)
         if ($totalCalories >= 300 && $totalCalories <= 800) $score += 30;
         elseif ($totalCalories >= 200 && $totalCalories <= 1000) $score += 20;
         elseif ($totalCalories > 0) $score += 10;
 
-        // Veggie/topping bonus (0-20)
+        // Toppings (0-20)
         if ($toppingCount >= 3) $score += 20;
         elseif ($toppingCount >= 2) $score += 15;
         elseif ($toppingCount >= 1) $score += 10;
 
-        // Completeness: having all 5 categories (0-20)
+        // Completeness (0-20)
         $catCount = count($categoriesUsed);
         if ($catCount >= 5) $score += 20;
         elseif ($catCount >= 4) $score += 10;
 
         return $score;
-    }
-
-    /**
-     * Find and group matching pairings for the given ingredient IDs.
-     */
-    private function findMatchingPairings(\PDO $db, array $ingredientIds): array
-    {
-        if (count($ingredientIds) < 2) return [];
-
-        $placeholders = implode(',', array_fill(0, count($ingredientIds), '?'));
-
-        $stmt = $db->prepare(
-            "SELECT p.combo_name, p.score_modifier, p.description,
-                    i1.name AS ingredient_1_name, i2.name AS ingredient_2_name
-             FROM pairings p
-             JOIN ingredients i1 ON p.ingredient_1_id = i1.id
-             JOIN ingredients i2 ON p.ingredient_2_id = i2.id
-             WHERE p.ingredient_1_id IN ({$placeholders})
-               AND p.ingredient_2_id IN ({$placeholders})"
-        );
-
-        $params = array_merge(
-            array_map('intval', $ingredientIds),
-            array_map('intval', $ingredientIds)
-        );
-        $stmt->execute($params);
-        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
-
-        // Group by combo_name
-        $grouped = [];
-        foreach ($rows as $row) {
-            $name = $row['combo_name'];
-            if (!isset($grouped[$name])) {
-                $grouped[$name] = [
-                    'combo_name' => $name,
-                    'score_modifier' => 0,
-                    'pairs' => [],
-                ];
-            }
-            $grouped[$name]['score_modifier'] += (int) $row['score_modifier'];
-            $grouped[$name]['pairs'][] = $row['ingredient_1_name'] . ' + ' . $row['ingredient_2_name'];
-        }
-
-        return array_values($grouped);
     }
 }

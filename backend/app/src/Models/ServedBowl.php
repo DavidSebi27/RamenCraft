@@ -5,8 +5,8 @@ namespace App\Models;
 /**
  * ServedBowl model — represents one bowl serving in history.
  *
- * Properties match the served_bowls DB columns for PDO::FETCH_CLASS.
- * Joined ingredients are loaded separately by the repository.
+ * Properties match served_bowls DB columns for PDO::FETCH_CLASS.
+ * Ingredients are loaded separately by the repository as BowlIngredient[].
  */
 class ServedBowl
 {
@@ -18,29 +18,27 @@ class ServedBowl
     public int $xp_earned = 0;
     public ?string $served_at = null;
 
-    /** @var array Ingredient names with categories — populated by repository */
+    /** @var BowlIngredient[] Populated by repository */
     public array $ingredients = [];
 
     /**
      * Convert to camelCase array for JSON response.
+     * No duplicate snake_case keys — frontend uses camelCase only.
      */
     public function toArray(): array
     {
         return [
-            'id' => (int) $this->id,
-            'userId' => (int) $this->user_id,
-            'tastinessScore' => (int) $this->tastiness_score,
-            'nutritionScore' => (int) $this->nutrition_score,
-            'totalScore' => (int) $this->total_score,
-            'xpEarned' => (int) $this->xp_earned,
-            'servedAt' => $this->served_at,
-            'ingredients' => $this->ingredients,
-            // Legacy snake_case fields for frontend compatibility
-            'tastiness_score' => (int) $this->tastiness_score,
-            'nutrition_score' => (int) $this->nutrition_score,
-            'total_score' => (int) $this->total_score,
-            'xp_earned' => (int) $this->xp_earned,
-            'served_at' => $this->served_at,
+            'id'              => (int) $this->id,
+            'userId'          => (int) $this->user_id,
+            'tastinessScore'  => (int) $this->tastiness_score,
+            'nutritionScore'  => (int) $this->nutrition_score,
+            'totalScore'      => (int) $this->total_score,
+            'xpEarned'        => (int) $this->xp_earned,
+            'servedAt'        => $this->served_at,
+            'ingredients'     => array_map(
+                fn(BowlIngredient $i) => $i->toArray(),
+                $this->ingredients
+            ),
         ];
     }
 }

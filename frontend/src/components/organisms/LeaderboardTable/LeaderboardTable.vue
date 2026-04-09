@@ -48,9 +48,9 @@ onMounted(() => {
       <table class="w-full text-left">
         <thead>
           <tr class="border-b border-ramen-brown">
-            <th class="font-pixel text-[8px] text-ramen-cream/40 pb-2 pr-4">#</th>
-            <th class="font-pixel text-[8px] text-ramen-cream/40 pb-2 pr-4">Player</th>
-            <th class="font-pixel text-[8px] text-ramen-cream/40 pb-2 pr-4">Rank</th>
+            <th class="font-pixel text-[8px] text-ramen-cream/40 pb-2 pr-2 md:pr-4">#</th>
+            <th class="font-pixel text-[8px] text-ramen-cream/40 pb-2 pr-2 md:pr-4">Player</th>
+            <th class="font-pixel text-[8px] text-ramen-cream/40 pb-2 pr-2 md:pr-4 hidden sm:table-cell">Rank</th>
             <th class="font-pixel text-[8px] text-ramen-cream/40 pb-2">XP</th>
           </tr>
         </thead>
@@ -61,9 +61,9 @@ onMounted(() => {
             class="border-b border-ramen-brown/30"
           >
             <!-- Rank number -->
-            <td class="py-2 pr-4">
+            <td class="py-2 pr-2 md:pr-4">
               <span
-                class="font-pixel text-sm"
+                class="font-pixel text-xs md:text-sm"
                 :class="player.rank <= 3 ? 'text-ramen-gold' : 'text-ramen-cream/60'"
               >
                 {{ player.rank }}
@@ -71,15 +71,15 @@ onMounted(() => {
             </td>
 
             <!-- Player name + tier indicator -->
-            <td class="py-2 pr-4">
+            <td class="py-2 pr-2 md:pr-4">
               <div class="flex items-center gap-2">
                 <span class="w-2 h-2 rounded-sm" :style="{ backgroundColor: tierColors[player.currentRank] }"></span>
-                <span class="text-sm text-ramen-cream">{{ player.username }}</span>
+                <span class="text-xs md:text-sm text-ramen-cream truncate max-w-[120px] md:max-w-none">{{ player.username }}</span>
               </div>
             </td>
 
-            <!-- Rank title -->
-            <td class="py-2 pr-4">
+            <!-- Rank title (hidden on small screens) -->
+            <td class="py-2 pr-2 md:pr-4 hidden sm:table-cell">
               <span
                 class="font-pixel text-[8px] uppercase"
                 :style="{ color: tierColors[player.currentRank] }"
@@ -90,7 +90,7 @@ onMounted(() => {
 
             <!-- XP -->
             <td class="py-2">
-              <span class="font-pixel text-[10px] text-ramen-gold">{{ player.totalXp.toLocaleString() }}</span>
+              <span class="font-pixel text-[8px] md:text-[10px] text-ramen-gold">{{ player.totalXp.toLocaleString() }}</span>
             </td>
           </tr>
         </tbody>

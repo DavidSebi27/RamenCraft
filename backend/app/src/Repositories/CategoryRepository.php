@@ -14,9 +14,11 @@ class CategoryRepository
 {
     private \PDO $db;
 
-    public function __construct()
+    private const COLUMNS = 'id, name, display_name, sort_order';
+
+    public function __construct(?\PDO $db = null)
     {
-        $this->db = Database::getConnection();
+        $this->db = $db ?? Database::getConnection();
     }
 
     /**
@@ -37,7 +39,7 @@ class CategoryRepository
 
         $offset = ($page - 1) * $limit;
 
-        $sql = "SELECT * FROM categories {$where} ORDER BY sort_order ASC LIMIT :limit OFFSET :offset";
+        $sql = "SELECT " . self::COLUMNS . " FROM categories {$where} ORDER BY sort_order ASC LIMIT :limit OFFSET :offset";
         $stmt = $this->db->prepare($sql);
         foreach ($params as $key => $val) {
             $stmt->bindValue($key, $val);
